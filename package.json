@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "spike:browser": "NODE_PATH=\"$(npm root -g)\" node spike/browser/check.mjs"
+    "spike:browser": "NODE_PATH=\"$(npm root -g)\" node spike/browser/check.mjs",
+    "gallery": "node gallery/build.mjs"
   },
   "dependencies": {
     "paper": "0.17.0"

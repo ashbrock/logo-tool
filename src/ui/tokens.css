@@ -1,0 +1,84 @@
+/* Design tokens: Drafting film. Values come only from DESIGN.md (§2–§4, §7). Change them there first. */
+:root {
+  color-scheme: dark;
+
+  /* §2.1 Interface */
+  --color-bg: #101416;
+  --color-surface: #171c1f;
+  --color-surface-raised: #1e2529;
+  --color-border: #2b3337;
+  --color-border-control: #67777d;
+  --color-text: #e6e9e4;
+  --color-text-muted: #93a0a5;
+  --color-text-disabled: #5d686d;
+  --color-accent: #7fc4e8;
+  --color-on-accent: #0c1012;
+  --color-danger: #f2958a;
+  --color-warning: #e9b85c;
+
+  /* §2.2 Canvas */
+  --canvas-bg: #0c1012;
+  --canvas-grid-minor: #162329;
+  --canvas-grid-major: #22404c;
+  --canvas-lattice: #4f7d94;
+  --canvas-ruler: #93a0a5;
+  --canvas-mark: #e8e3d3;
+  --canvas-point: #e6e9e4;
+  --canvas-active: #7fc4e8;
+  --canvas-radius: #6aa8c6;
+  --canvas-selection: #f7f5ee;
+  --canvas-halo: #0c1012;
+  --canvas-axis: #3d6a7e;
+  --canvas-cut: #7fc4e8;
+  --canvas-invalid: #f2958a;
+  --canvas-clamped: #e9b85c;
+  --canvas-ghost: #93a0a5;
+
+  /* §2.3 Paper preview and export */
+  --paper-bg: #ffffff;
+  --ink-default: #000000;
+  --paper-grid-minor: #e6eff4;
+  --paper-grid-major: #c4dbe7;
+  --paper-lattice: #7fa9bf;
+  --paper-radius: #3f87ad;
+
+  /* §3 Typography (self-hosted Plex files are added with the UI; the fallbacks apply until then) */
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+
+  /* §3.1 Scale: size / line height */
+  --type-micro-size: 11px;   --type-micro-lh: 16px;
+  --type-label-size: 11px;   --type-label-lh: 16px;
+  --type-body-size: 13px;    --type-body-lh: 20px;
+  --type-heading-size: 16px; --type-heading-lh: 24px;
+  --type-title-size: 20px;   --type-title-lh: 28px;
+
+  /* §4 Spacing, sizing and shape */
+  --space-0-5: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --rail-width: 240px;
+  --hint-height: 32px;
+  --ruler-size: 24px;
+  --control-height: 32px;
+  --icon-size: 16px;
+  --radius-control: 2px;
+  --border-width: 1px;
+  --focus-width: 2px;
+
+  /* §7 Motion */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
+}
