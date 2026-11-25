@@ -64,3 +64,8 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Named radii belong to the document.** There are no cross-document presets.
 - **Architecture boundaries are enforced by an import-scanning test,** not ESLint. That avoids an unapproved dependency.
 - **Open: a companion square lattice for the polar grid.** m-logo-1's clip rectangle has off-lattice corners. Until answered, m-logo-1 stays a stretch target.
+
+## Build log
+
+- **Paper.js test passed** in Node (`paper-jsdom`) and in Chromium (core build, no `<canvas>` element). It covers union, cutout-as-hole, a wedge clipped by a frame, rectangles sharing an edge (shared edge removed, 4 corners), and a circle tangent to a line. Curved results are 0.025–0.028% larger in area than true circles, which is Paper's four-cubic circle approximation. This confirms export needs arc recovery to produce exact `A` arcs.
+- **Playwright is used from the environment's global install** for now (`npm run spike:browser`). CI will need it installed as a dev dependency, which needs approval.

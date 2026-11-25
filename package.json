@@ -1,0 +1,25 @@
+{
+  "name": "logo-tool",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Browser-based geometric logo construction tool.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "spike:browser": "NODE_PATH=\"$(npm root -g)\" node spike/browser/check.mjs"
+  },
+  "dependencies": {
+    "paper": "0.17.0"
+  },
+  "devDependencies": {
+    "fast-check": "4.11.0",
+    "paper-jsdom": "0.17.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
+  }
+}
