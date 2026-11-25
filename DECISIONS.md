@@ -23,3 +23,15 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Rebuild tests compare rendered overlays.** Node count must be less than or equal to the original's. Intentional deviations (for example, one consistent slope for p-logo-7) are recorded here.
 - **Removed from the rebuild set:** upload-1.png (raster with no source) and p-logo-2 (elliptical bowl, a non-circular curve).
 - **Export uses SVG arc commands (`A`) for circular arcs,** not cubic approximations. Arcs are exact, smaller, and match the geometry model.
+
+## Geometry model (step 2)
+
+- **Points are stored as whole numbers in sub-step units** (e.g. u = 27 with subdivision 8 means 3⅜ cells). They're exactly on the lattice by construction, so there's no float drift. The UI shows decimal grid coordinates.
+- **Grids are data definitions using one of three mapping kinds:** affine (square, slant, triangular, isometric angle), polar (rings × rays, single centre), rows (typographic lines + column step). Each grid declares its native symmetry group and cell tiles. A new grid of an existing kind needs data only.
+- **Corner model is per point: fillet or wrap.** round = fillet (the vertex stays on the point). outer and inward = the outline wraps a circle centred on the point. auto = outer when the outline turns convex, inward when concave. Edges are tangent lines computed analytically. The reference logos use both models.
+- **The core never emits a zero-radius or out-of-range arc.** SVG renderers silently "correct" those (SVG 2, out-of-range arc parameters), which would hide bugs. r = 0 becomes a sharp vertex. A fillet too large for its edges is clamped and flagged. A wrap with no valid tangent marks the shape invalid.
+- **Path segments are lines or arcs centred on a lattice point.** An arc is valid only when both ends are equidistant from its centre (checked on the stored lattice integers, not computed positions).
+- **Strokes are paths with width, cap and join, outlined on export.** Offsetting a circular arc gives a circular arc, so the outline stays exact. Live SVG strokes in export are deferred.
+- **Booleans use Paper.js and stay live, never baked in.** Intersections are generally not lattice points, so baking them would break the lattice invariant. Paper.js stores arcs as cubics, so export recovers arcs by matching result curves to known source circles. Dependency approved: `paper` at runtime (core build), `paper-jsdom` for tests only.
+- **Symmetry is live copies,** limited to the grid's native symmetry group so copies stay on the lattice. A detach command bakes them into ordinary shapes.
+- **Undo is pure commands over an immutable document,** with history as snapshots. Undo returns the identical document by construction. Drags and nudge runs coalesce into one entry. Derived geometry is never stored.
