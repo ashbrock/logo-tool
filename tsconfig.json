@@ -16,5 +16,5 @@
     "types": ["vitest/globals"],
     "noEmit": true
   },
-  "include": ["src", "tests", "spike"]
+  "include": ["src", "tests"]
 }

@@ -96,17 +96,14 @@ interface Shape {
   jointRadius: Len240;                   // fillets corners created where this shape meets the result so far
 }
 
-interface GridDef {
-  kind: 'affine' | 'polar' | 'rows';
-  preset: 'square' | 'triangular' | 'isometric' | 'polar' | 'typographic';
-  subdivision: 1 | 2 | 3 | 4 | 6 | 8;
-  extent: { u: Int; v: Int };            // in whole cells
-  params:
-    | { kind: 'affine'; slantDeg: number; rotationDeg: number;
-        basis: 'square' | 'triangular' | { isoRatio: 'true30' | '2:3' | '1:2' } }
-    | { kind: 'polar'; rings: Int; rays: Int; rotationDeg: number }
-    | { kind: 'rows'; columns: Int; rows: { name: string; at: Int }[] };   // rows in sub-steps
-}
+type GridDef =                           // src/grids/types.ts is the source of truth
+  | { kind: 'affine'; preset: 'square'; subdivision; width; height; slantDeg; rotationDeg }
+  | { kind: 'affine'; preset: 'triangular'; subdivision; width; height; rotationDeg }
+  | { kind: 'affine'; preset: 'isometric'; subdivision; width; height; ratio: 'true30' | '2:3' | '1:2'; rotationDeg }
+  | { kind: 'affine'; preset: 'typographic'; subdivision; width; height; rows: { name; at /* sub-steps from top */ }[] }
+  | { kind: 'polar'; preset: 'polar'; subdivision /* rings */; rings; rays; rotationDeg };
+// width/height are whole cells. The extent is the rectangle [0, width] × [0, height] (polar: [0, 2·rings]²
+// with the centre at (rings, rings)); lattice points are every (u, v) whose position lies inside it.
 
 type Symmetry =
   | { kind: 'none' }
@@ -153,11 +150,17 @@ interface GridKind<P> {
 }
 ```
 
-- **affine:** `toPlane = R(rotation) · S(slant) · (u·e1 + v·e2) / subdivision`. Square: e1 = (1, 0), e2 = (0, 1). Triangular: e1 = (1, 0), e2 = (½, √3/2). Isometric by ratio: e1 = (1, k), e2 = (1, −k), where k is tan 30° (true isometric), 2/3 or 1/2. `dist2Exact` is the quadratic form of the basis evaluated on integers. It's exact in ℤ for square and in ℤ[√3] for triangular, represented as a pair `(a, b)` meaning a + b√3.
-- **polar:** `toPlane = ring/subdivision · (cos θ, sin θ)` with θ = rotation + 2π·ray/rays. `dist2Exact` uses the law of cosines with cos(2πk/rays), held exactly for rays ∈ {4, 6, 8, 12, 24} and compared with a 1e-12 relative tolerance otherwise (documented in `VERIFICATION.md` as the one tolerance-based invariant). Ring 0 is normalised to (0, 0).
-- **rows:** `toPlane = (u / subdivision, rowsY(v))`. Distances are exact rationals.
+- **affine** (square, slanted square, triangular, isometric, typographic): `toPlane = rotate_about_pivot((u·e1 + v·e2) / subdivision)`.
+  - Square: e1 = (1, 0), e2 = (tan slant, 1). Triangular: e1 = (1, 0), e2 = (½, √3/2). Isometric: e1 = (1, k), e2 = (1, −k), with k = tan 30°, 2/3 or 1/2.
+  - **Typographic is a square lattice** with labelled horizontal rows (baseline, x-height, …) placed on sub-steps. Uneven row spacing isn't needed, because subdivision gives the resolution.
+  - **The rotation pivot is the whole-cell lattice point nearest the rectangle's centre.** It stays fixed and inside, so a rotated grid is never empty. Rotating about the rectangle's centre could empty a small grid (found by P1 at 2,000 runs).
+- **polar:** `toPlane = (R, R) + ring/subdivision · (cos θ, sin θ)` with θ = rotation + 2π·ray/rays. Ring 0 is normalised to (0, 0).
+- **Exact squared distances** (`src/geometry/exact.ts`) are integer combinations of [1, √2, √3, √6, t, t²], where t is the slant tangent, scaled by a constant per grid:
+  - affine: the basis's quadratic form on integer deltas. The t terms appear only when the slant isn't zero, otherwise (3, 4) and (5, 0) would compare unequal.
+  - polar: the law of cosines with 4·cos(m·15°) held exactly, so it's exact whenever the ray count divides 24. Other ray counts carry an approximate value compared with a 1e-12 relative tolerance, the one tolerance-based invariant (`VERIFICATION.md` §2).
+  - Coefficient-wise equality is conservative: it can only refuse an arc, never accept a wrong one.
 
-`nearest` is brute force over a 3 × 3 neighbourhood of the inverse-mapped cell. It's verified against a full scan by a property test.
+`nearest` (affine) finds the nearest lattice point ignoring the extent, using a 5 × 5 neighbourhood of the rounded inverse map. If that point is outside the extent (the pointer is off the grid), it falls back to scanning the extent. `nearest` (polar) projects the pointer onto the nearest rays (±2) and takes the best ring on each. Both are verified against a full scan by P1.
 
 ### 4.2 Contours
 
