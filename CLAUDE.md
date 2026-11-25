@@ -1,9 +1,9 @@
 # CLAUDE.md
 
 ## Project
-A browser-based logo construction tool. The user picks a grid type, then builds a logo mark by placing points on the grid and connecting them. There is never free drawing: every point snaps to the grid. Points and grids are adjustable (size, corner radius, corner type), and finished marks export as SVG and PNG, optionally with the construction overlay.
+A browser-based geometric logo construction tool. The user picks a grid type, then builds a logo mark by placing points on the grid and connecting them. There is never free drawing: every point snaps to the grid. Points and grids are adjustable (size, corner radius, corner type), and finished marks export as SVG and PNG, optionally with the construction overlay.
 
-It is a construction tool, not a Figma or Illustrator replacement. Don't add features that push it in that direction (layers panels, effects, gradients, general-purpose pen tool).
+It is a construction tool for geometric marks, not a Figma or Illustrator replacement. Don't add features that push it in that direction (layers panels, effects, gradients, general-purpose pen tool).
 
 This is a portfolio piece. Design quality, polish and clear decisions matter as much as functionality.
 
@@ -11,7 +11,8 @@ This is a portfolio piece. Design quality, polish and clear decisions matter as 
 - `SPEC.md` (behaviour), `DESIGN.md` (visual system), `ARCHITECTURE.md` (structure) and `VERIFICATION.md` (how we prove it's right) define the project.
 - If the code and these documents disagree, stop and ask me. Don't silently pick one.
 - Never invent colours, fonts or spacing values. Use the tokens in `DESIGN.md`.
-- `/references` holds my real logo files and notes. Treat them as ground truth for how I work and for what good exported output looks like. `/references/inspiration` holds a screenshot of another designer's tool: use it for interaction patterns only, never copy its layout, naming or styling.
+- `/references` holds my real logo files. Treat them as visual targets for what the tool must be able to build, not as examples of good path data. Export quality is defined in `VERIFICATION.md`.
+- Inspiration (another designer's tool, stock sheets of geometric marks) is for interaction patterns and capability targets only. Never copy its layout, naming or styling, and don't commit those images.
 
 ## Stack and constraints
 - Static site. No backend, no accounts, no database.
@@ -30,7 +31,7 @@ This is a portfolio piece. Design quality, polish and clear decisions matter as 
 ## Testing and verification
 - Follow `VERIFICATION.md`. Don't mark a feature done until its checks pass.
 - Property-based tests (e.g. fast-check) for: every placed point lies exactly on the lattice, export is deterministic, undo then redo restores identical state.
-- Reconstruction tests: rebuild the logos in `/references`, export them, and compare with the originals (overlay diff plus path and node-count comparison).
+- Reconstruction tests: rebuild the logos in `/references`, export them, and compare with the originals visually (rendered overlay diff). Node count must not exceed the original. Intentional deviations from a reference are recorded in `DECISIONS.md`.
 - Exported SVG must have no stray transforms, minimal nodes, and valid markup. Run SVGO before declaring an export feature done.
 - Run the geometry and export tests before and after any change to `src/geometry/`, `src/grids/` or `src/export/`.
 - Tell me which checks you ran and which need me to do by hand (opening exports in Figma, Illustrator, Inkscape).
