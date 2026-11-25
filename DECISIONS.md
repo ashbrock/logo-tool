@@ -35,3 +35,8 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Booleans use Paper.js and stay live, never baked in.** Intersections are generally not lattice points, so baking them would break the lattice invariant. Paper.js stores arcs as cubics, so export recovers arcs by matching result curves to known source circles. Dependency approved: `paper` at runtime (core build), `paper-jsdom` for tests only.
 - **Symmetry is live copies,** limited to the grid's native symmetry group so copies stay on the lattice. A detach command bakes them into ordinary shapes.
 - **Undo is pure commands over an immutable document,** with history as snapshots. Undo returns the identical document by construction. Drags and nudge runs coalesce into one entry. Derived geometry is never stored.
+
+## Visual direction (step 3)
+
+- **Direction A, Drafting film, chosen, plus B's cell ruler.** Construction is drawn in non-photo blue and the mark in bone white, so construction and mark separate at a glance. The construction-overlay export reads as a drafting sheet. A near-neutral ground distorts a mark's perceived weight the least.
+- **Adjustments to A:** the serif italic is limited to the mark name and section headings (rail labels are monospace). Selection gets its own colour, distinct from construction blue. Control borders are raised to 3:1 non-text contrast.
