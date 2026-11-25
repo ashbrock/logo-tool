@@ -7,7 +7,7 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Geometric marks are the focus.** The tool is for marks built from grid points, straight lines and circular arcs, like stock "geometric logo" sheets. That's where a lattice-locked tool beats a general editor.
 - **One mark per document.** Sheets of marks were only examples of range. No multi-mark board in v1.
 - **Font generation is a non-goal for v1.** motion-logo shows it's a real future use. The data model shouldn't block it, but v1 doesn't build it.
-- **Stroke shapes are first-class alongside fills.** 5 of the 13 reference logos are monoline, and the designer's workflow starts with strokes.
+- **Stroke shapes are first-class alongside fills.** 5 of the 15 reference SVGs are monoline (motion, m-logo-2, a-logo, p-logo-3, p-logo-6), and the designer's workflow starts with strokes.
 - **v1 additions accepted:** live symmetry (per grid's native symmetry), cell fill, full union/subtract/intersect, arc segments centred on lattice points. Parallel repeat ships if time allows. It's the first thing to cut.
 - **Non-goals added:** interlaced (over/under) strokes, non-circular curves (ellipses, free Béziers, superellipses), gradients and textures.
 
@@ -40,3 +40,24 @@ One or two lines per significant decision, with the reason. Newest last.
 
 - **Direction A, Drafting film, chosen, plus B's cell ruler.** Construction is drawn in non-photo blue and the mark in bone white, so construction and mark separate at a glance. The construction-overlay export reads as a drafting sheet. A near-neutral ground distorts a mark's perceived weight the least.
 - **Adjustments to A:** the serif italic is limited to the mark name and section headings (rail labels are monospace). Selection gets its own colour, distinct from construction blue. Control borders are raised to 3:1 non-text contrast.
+
+## Product details (step 4)
+
+- **Saving:** browser autosave plus Save / Open project file (`.json`). There's no cloud, but closing a tab shouldn't lose work.
+- **Export:** SVG, PNG and Copy SVG to clipboard. PNG at 512, 1024, 2048 and 4096 px (long side), transparent by default. Mark colour is black by default, or any single hex.
+- **Construction overlay export** includes grid lines, lattice points, radius circles, and cutout and boolean outlines, but not point numbers or selection. It comes in dark (drafting film) and light (paper) styles.
+- **Export bounds:** a tight `viewBox` around the mark, with optional padding in cells.
+- **Grid type is fixed once the first point exists.** Density, subdivision and angle changes are allowed only when every point maps exactly. Lattice coordinates don't translate between grid types.
+- **Start:** a blank grid, or Examples (rebuilt references) to show the tool's range in the first minute.
+- **Paper preview toggle:** see the mark in its export colour on white, because marks read differently light-on-dark.
+- **Targets:** current desktop Chrome, Safari and Firefox. No touch support. Hosted on GitHub Pages.
+- **Dependencies approved:** TypeScript, Vite, Preact, Vitest, fast-check, SVGO, pixelmatch, Paper.js (+ paper-jsdom for tests), and self-hosted IBM Plex Mono and Plex Serif (OFL).
+
+## Documents (step 5)
+
+- **Rebuild set is 13 logos:** all 15 reference SVGs except p-logo-2 (ellipse) and p-logo-6 (two polar centres). An earlier message miscounted this as 14 SVGs and 11 of 13.
+- **Affine grids get a rotation parameter, and isometric grids are set by ratio (true 30°, 2:3, 1:2), not free degrees.** node-logo is a triangular lattice rotated 15°. e-logo-4's 2:3 slope gives whole-number export coordinates when stored as a ratio.
+- **Cell fill mode is named Tile (T),** to avoid clashing with "fill" as a paint.
+- **Shapes are evaluated in creation order (add / cut / intersect), with keyboard reordering and no list panel.** It's an ordered boolean fold, not layers.
+- **Radii are stored as whole numbers of 1/240 cell,** exact for every allowed subdivision (1, 2, 3, 4, 6, 8).
+- **m-logo-1 is an open question.** Its rounded corners come from a rectangle clip, not lattice points. v1 default: leave it out of the must-pass rebuild set.
