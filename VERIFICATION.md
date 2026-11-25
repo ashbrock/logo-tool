@@ -51,12 +51,12 @@ Original node counts were measured on the files in `/references` (Z excluded).
 | node-logo | triangular, rotation 15° | outer and inward wraps, cutout | 111 | 111 | 1.5% |
 | motion-logo | square 23 × 6 (8) | wraps r = 0.5, flat ends, 0.375 spacing, cutouts | 119 | 119 | 1.0% |
 | m-logo-2 | square (2) | strokes with arc segments, round caps | 97 | 97 | 1.0% |
-| m-logo-1 | polar 24 rays | rays clipped to a rectangle, joint radius at clip corners | 50 | 50 | **stretch** |
+| m-logo-1 | polar 24 rays + companion square | rays intersected with a frame, joint radius at clip corners | 50 | 50 | 1.5% |
 
 - \* e-logo-2's original has nodes about 0.028 off its lattice. The rebuild puts them on the lattice, which is an intentional deviation within the threshold.
 - † p-logo-7's two slopes (31.36° and 32.64°) are unified in the rebuild. This deviation is recorded in `DECISIONS.md`, which justifies the 3.0% threshold.
 - **p-logo-3's limit is 60 nodes, not 191,** because the original's 146 tiny curve segments are a defect. The rebuild must be about 3× leaner. That's the evidence that export quality beats the reference.
-- **m-logo-1 is a stretch target** until `SPEC.md` §11 Q1 (a companion square lattice for the polar grid) is answered. The joint radius covers its rounded clip corners, but not its off-lattice clip rectangle. It's run and reported, but doesn't gate a release.
+- **m-logo-1** needs both the companion square lattice (its frame) and the joint radius (its rounded clip corners).
 - Radii are stored in 1/240 cell, so original radii that aren't multiples (e.g. e-logo-3's 2/35 cell) round to the nearest step. The thresholds absorb this. It's under 0.02 px at the original sizes.
 - Excluded: p-logo-2 (elliptical bowl) and p-logo-6 (two polar centres). Both are non-goals in `SPEC.md` §2.
 

@@ -59,8 +59,9 @@ The document holds **only the source of truth**. Everything drawn (outlines, boo
 ```ts
 type Int = number;                       // always an integer; checked by assertInt() at boundaries
 
-/** A lattice point in sub-step units of the document's grid. (27, 8) with subdivision 8 = (3⅜, 1). */
-interface Lattice { u: Int; v: Int }
+/** A lattice point in sub-step units of the document's grid. (27, 8) with subdivision 8 = (3⅜, 1).
+ *  On polar grids, layer 'square' marks a companion square point: (u, v) = offset from the centre. */
+interface Lattice { u: Int; v: Int; layer?: 'square' }
 
 /** Lengths (radius, stroke width) in 1/240 of a cell. 240 is divisible by every allowed subdivision. */
 type Len240 = Int;
@@ -101,7 +102,7 @@ type GridDef =                           // src/grids/types.ts is the source of 
   | { kind: 'affine'; preset: 'triangular'; subdivision; width; height; rotationDeg }
   | { kind: 'affine'; preset: 'isometric'; subdivision; width; height; ratio: 'true30' | '2:3' | '1:2'; rotationDeg }
   | { kind: 'affine'; preset: 'typographic'; subdivision; width; height; rows: { name; at /* sub-steps from top */ }[] }
-  | { kind: 'polar'; preset: 'polar'; subdivision /* rings */; rings; rays; rotationDeg };
+  | { kind: 'polar'; preset: 'polar'; subdivision /* rings */; rings; rays; rotationDeg; companionSquare: boolean };
 // width/height are whole cells. The extent is the rectangle [0, width] × [0, height] (polar: [0, 2·rings]²
 // with the centre at (rings, rings)); lattice points are every (u, v) whose position lies inside it.
 
@@ -154,7 +155,7 @@ interface GridKind<P> {
   - Square: e1 = (1, 0), e2 = (tan slant, 1). Triangular: e1 = (1, 0), e2 = (½, √3/2). Isometric: e1 = (1, k), e2 = (1, −k), with k = tan 30°, 2/3 or 1/2.
   - **Typographic is a square lattice** with labelled horizontal rows (baseline, x-height, …) placed on sub-steps. Uneven row spacing isn't needed, because subdivision gives the resolution.
   - **The rotation pivot is the whole-cell lattice point nearest the rectangle's centre.** It stays fixed and inside, so a rotated grid is never empty. Rotating about the rectangle's centre could empty a small grid (found by P1 at 2,000 runs).
-- **polar:** `toPlane = (R, R) + ring/subdivision · (cos θ, sin θ)` with θ = rotation + 2π·ray/rays. Ring 0 is normalised to (0, 0).
+- **polar:** `toPlane = (R, R) + ring/subdivision · (cos θ, sin θ)` with θ = rotation + 2π·ray/rays. Ring 0 is normalised to (0, 0). Companion square points map to (R, R) + (u, v)/subdivision. A square point on a ray is normalised to the polar point, so every position has one representation. Polar-to-square distances are exact when the ray count divides 24 and the rotation is a multiple of 15°.
 - **Exact squared distances** (`src/geometry/exact.ts`) are integer combinations of [1, √2, √3, √6, t, t²], where t is the slant tangent, scaled by a constant per grid:
   - affine: the basis's quadratic form on integer deltas. The t terms appear only when the slant isn't zero, otherwise (3, 4) and (5, 0) would compare unequal.
   - polar: the law of cosines with 4·cos(m·15°) held exactly, so it's exact whenever the ray count divides 24. Other ray counts carry an approximate value compared with a 1e-12 relative tolerance, the one tolerance-based invariant (`VERIFICATION.md` §2).

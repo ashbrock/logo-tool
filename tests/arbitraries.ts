@@ -24,7 +24,7 @@ export const gridArb: fc.Arbitrary<GridDef> = fc.oneof(
   fc.record({
     kind: fc.constant('polar' as const), preset: fc.constant('polar' as const), subdivision,
     rings: fc.integer({ min: 1, max: 6 }), rays: fc.oneof(fc.constantFrom(4, 6, 8, 12, 24), fc.integer({ min: 3, max: 36 })),
-    rotationDeg: rotation,
+    rotationDeg: rotation, companionSquare: fc.boolean(),
   }),
 );
 

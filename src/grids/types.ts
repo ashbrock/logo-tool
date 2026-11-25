@@ -51,6 +51,8 @@ export type GridDef =
       readonly rings: Int;
       readonly rays: Int;
       readonly rotationDeg: number;
+      /** Also offer an axis-aligned square lattice with the same unit and centre (frames around rays). */
+      readonly companionSquare: boolean;
     };
 
 /** A symmetry of the lattice: maps lattice points to lattice points exactly, and is a Euclidean isometry. */

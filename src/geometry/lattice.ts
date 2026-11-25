@@ -7,12 +7,19 @@ import { assertInt, type Int } from './num';
 export interface Lattice {
   readonly u: Int;
   readonly v: Int;
+  /**
+   * Polar grids only: 'square' marks a point on the companion square lattice (same unit and
+   * centre as the polar grid), with (u, v) = offset from the centre in sub-steps. Absent = primary.
+   */
+  readonly layer?: 'square';
 }
 
-export function lattice(u: number, v: number): Lattice {
-  return { u: assertInt(u, 'u'), v: assertInt(v, 'v') };
+export function lattice(u: number, v: number, layer?: 'square'): Lattice {
+  // `+ 0` turns −0 (from rounding small negatives) into 0, so equality and JSON round trips agree.
+  const p = { u: assertInt(u, 'u') + 0, v: assertInt(v, 'v') + 0 };
+  return layer ? { ...p, layer } : p;
 }
 
-export const latticeEq = (a: Lattice, b: Lattice): boolean => a.u === b.u && a.v === b.v;
+export const latticeEq = (a: Lattice, b: Lattice): boolean => a.u === b.u && a.v === b.v && a.layer === b.layer;
 
-export const latticeKey = (p: Lattice): string => `${p.u},${p.v}`;
+export const latticeKey = (p: Lattice): string => `${p.layer === 'square' ? 's' : ''}${p.u},${p.v}`;

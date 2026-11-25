@@ -100,11 +100,12 @@ All grids are data definitions (see `ARCHITECTURE.md` §3). Defaults are in brac
 | **Square** | columns × rows [6 × 6], subdivision [1], slant −45…45° [0], rotation [0] | mirror H/V, 90° rotation | square, 4 right triangles, 4 quarter-discs, 2 half-discs per cell pair | p-logo-1, e-logos, motion, m-logo-2, p-logo-3; p-logo-4 (slant) |
 | **Triangular** | size [6], subdivision [1], rotation [0] | mirror (6 axes), 60° rotation | 2 triangles per rhombus cell | a-logo, node-logo (rotation 15°) |
 | **Isometric** | size [6], subdivision [1], ratio: true 30° / 2:3 / 1:2 [true 30°] | mirror V, 180° rotation (120° when true 30°) | rhombus faces, triangles | e-logo-4 (2:3), p-logo-7 |
-| **Polar** | rings [6], rays [24], subdivision (ring) [1], rotation [0] | n-fold rotation for n dividing the ray count; mirror on any ray | annular sectors, triangles (centre wedges) | p-logo-5, node-logo (alt.) |
-| **Typographic** | columns [12], named rows (baseline 0, x-height, cap height, ascender, descender) in cells, subdivision [2] | mirror V | square, quarter-discs | motion-logo (alt.) |
+| **Polar** | rings [6], rays [24], subdivision (ring) [1], rotation [0], companion square lattice [off] | n-fold rotation for n dividing the ray count; mirror on any ray. With the companion lattice on: only 2- and 4-fold rotation and mirrors at multiples of 45°. | annular sectors, triangles (centre wedges) | p-logo-5, node-logo (alt.), m-logo-1 (companion on) |
+| **Typographic** | 12 × 8 cells, subdivision [2], named rows measured from the top on an 8-cell em [ascender 0, cap height 0.5, x-height 2, baseline 6, descender 8], i.e. ascender 0.75 em, cap ≈ 0.69 em, x-height 0.5 em, descender 0.25 em | mirror left–right | square, quarter-discs | motion-logo (alt.) |
 
 - Grid **type** is fixed once the document has a point. Size, subdivision, slant, ratio and rotation can change only if every existing point (and arc centre) maps to an exact lattice point under the new parameters. Otherwise the change is refused with a message naming how many points wouldn't map.
 - Subdivision options: 1, 2, 3, 4, 6, 8. Maximum grid: 24 × 24 cells (polar: 24 rings × 96 rays).
+- **Companion square lattice (polar).** An axis-aligned square lattice with the polar grid's unit and centre, for building frames around rays (m-logo-1 and stock "rays in a square" marks). Where a square point falls on a ray, it is the same point as the polar one.
 
 ## 6. User flows
 
@@ -362,5 +363,7 @@ Resolved:
 - **Rounding at boolean edges:** answered by adding a joint radius (§6.7 step 5).
 - **Named radii:** belong to the document. There are no cross-document presets.
 
-Open:
-1. **A square frame on the polar grid (m-logo-1).** m-logo-1's clip rectangle has corners that aren't polar lattice points, so the joint radius alone can't rebuild it. Proposal: the polar grid also offers a **companion square lattice** with the same unit and centre, so frames and rays can be built together. Several stock marks (rays clipped to a square) need the same thing. [Default until answered: m-logo-1 stays a stretch target.]
+- **A square frame on the polar grid:** added as the companion square lattice (§5).
+- **Typographic row defaults:** common Latin proportions on an 8-cell em (§5). They're editable per document.
+
+Open: none.

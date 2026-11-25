@@ -63,7 +63,8 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Joint radius per shape.** Corners created by boolean operations get fillets from the later shape's joint radius. This gives rounded clip corners (m-logo-1, and stock "rays in a square" marks) without baking off-lattice points into the document.
 - **Named radii belong to the document.** There are no cross-document presets.
 - **Architecture boundaries are enforced by an import-scanning test,** not ESLint. That avoids an unapproved dependency.
-- **Open: a companion square lattice for the polar grid.** m-logo-1's clip rectangle has off-lattice corners. Until answered, m-logo-1 stays a stretch target.
+- **Polar grids offer a companion square lattice** (same unit and centre, off by default). m-logo-1's frame corners aren't polar points. With the companion on, only symmetries that keep square points on their lattice are offered (2- and 4-fold rotation, mirrors at multiples of 45°). m-logo-1 is back in the must-pass rebuild set.
+- **Lattice coordinates never hold −0.** The constructor normalises it, so equality and JSON round trips agree. Found by P1.
 
 ## Build log
 
@@ -72,4 +73,4 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Lattice core built** (`src/geometry/`, `src/grids/`). P1 and P5 pass at 200 and 2,000 runs. At 2,000 runs, P1 found two real bugs. Small rotated grids could contain no lattice points, fixed by rotating about a lattice point rather than the rectangle centre. Polar snapping with few rays missed nearer inner-ring points, fixed by projecting the pointer onto each nearby ray. A third, off-grid snapping on rotated grids, was fixed by scanning the extent only when the pointer is outside it.
 - **Mutation checks:** breaking the triangular 60° rotation or restricting polar snapping to one candidate ring fails the suite. Restricting polar snapping to the single nearest ray survives 2,000 cases and an exhaustive 121 × 121 sample. Checking ±2 rays is kept as cheap insurance, not because a failing case is known.
 - **No `@types/node`:** the two Node globals the tests use are declared in `tests/env.d.ts`, and the throwaway spike files sit outside the type check.
-- **Typographic row defaults are placeholders** (ascender, cap height, x-height, baseline, descender at 0, 1, 3, 6 and 7.5 cells). They need the designer's confirmation.
+- **Typographic row defaults use common Latin proportions on an 8-cell em:** ascender 0.75 em, cap ≈ 0.69 em, x-height 0.5 em, descender 0.25 em. The designer asked for a sensible default. The values are editable.

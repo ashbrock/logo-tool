@@ -50,8 +50,9 @@ describe('P1: snapping lands exactly on the lattice', () => {
         const q = { x, y };
         const p = nearest(q, g, { wholeOnly: true });
         const s = g.subdivision;
-        if (g.kind === 'polar') expect(p.u % s).toBe(0);
-        else expect(p.u % s === 0 && p.v % s === 0).toBe(true);
+        // `=== 0` rather than toBe(0): companion square points can be negative, and −1 % 1 is −0.
+        const whole = g.kind === 'polar' && p.layer !== 'square' ? p.u % s === 0 : p.u % s === 0 && p.v % s === 0;
+        expect(whole).toBe(true);
         const best = Math.min(...latticePoints(g, { wholeOnly: true }).map((w) => dist2(toPlane(w, g), q)));
         expect(dist2(toPlane(p, g), q)).toBeLessThanOrEqual(best + 1e-9);
       }),

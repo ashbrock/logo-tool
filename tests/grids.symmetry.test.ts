@@ -103,14 +103,58 @@ describe('exact squared distances', () => {
     expect(exactEq(chordA, dist2Exact({ u: 3, v: 0 }, { u: 3, v: 4 }, polar))).toBe(false);
   });
 
-  it('are exact on every grid except polar grids whose ray count does not divide 24', () => {
+  it('are exact on every grid except polar cases outside the 15° basis', () => {
     fc.assert(
       fc.property(gridWithPoints, ({ g, a, b }) => {
         const s = dist2Exact(a, b, g);
-        const expectExact = !(g.kind === 'polar' && 24 % g.rays !== 0);
+        let expectExact = true;
+        if (g.kind === 'polar') {
+          const sa = a.layer === 'square', sb = b.layer === 'square';
+          if (sa && sb) expectExact = true;
+          else if (sa || sb) expectExact = 24 % g.rays === 0 && Number.isInteger(g.rotationDeg / 15);
+          else expectExact = 24 % g.rays === 0;
+        }
         expect(s.exact).toBe(expectExact);
       }),
       { numRuns: RUNS },
     );
+  });
+});
+
+describe('polar companion square lattice (m-logo-1 frames)', () => {
+  const g = { ...defaultGrid('polar'), rings: 4, rays: 24, companionSquare: true } as GridDef;
+
+  it('offers frame corners that are not polar points', () => {
+    const corner = { u: 3, v: 2, layer: 'square' as const };
+    expect(latticePoints(g).some((p) => p.layer === 'square' && p.u === 3 && p.v === 2)).toBe(true);
+    const pt = toPlane(corner, g);
+    expect(pt.x).toBeCloseTo(7, 12);
+    expect(pt.y).toBeCloseTo(6, 12);
+  });
+
+  it('stores a square point on a ray as the polar point (one representation per position)', () => {
+    expect(normalise({ u: 2, v: 0, layer: 'square' }, g)).toEqual({ u: 2, v: 0 });   // 0°
+    expect(normalise({ u: 0, v: 3, layer: 'square' }, g)).toEqual({ u: 3, v: 6 });   // 90° = ray 6 of 24
+    expect(normalise({ u: 0, v: 0, layer: 'square' }, g)).toEqual({ u: 0, v: 0 });
+  });
+
+  it('only offers symmetries that keep square points on their lattice', () => {
+    const ids = symmetries(g).map((o) => o.id);
+    expect(ids).toContain('rot-4');
+    expect(ids).toContain('rot-2');
+    expect(ids).not.toContain('rot-6');   // 60° would move frame corners off the square lattice
+    expect(ids).not.toContain('rot-24');
+  });
+
+  it('measures ray-to-frame distances exactly', () => {
+    // Ring 2 on ray 3 (45°) is (√2, √2) from the centre; square points (1, 1) and (−1, −1) are √2 away
+    // from the centre in opposite directions, so their squared distances to it differ, exactly.
+    const r = { u: 2, v: 3 };
+    const near = dist2Exact(r, { u: 1, v: 1, layer: 'square' }, g);
+    const far = dist2Exact(r, { u: -1, v: -1, layer: 'square' }, g);
+    expect(near.exact && far.exact).toBe(true);
+    expect(exactEq(near, far)).toBe(false);
+    // and the two square points are equidistant from the centre
+    expect(exactEq(dist2Exact({ u: 0, v: 0 }, { u: 1, v: 1, layer: 'square' }, g), dist2Exact({ u: 0, v: 0 }, { u: -1, v: -1, layer: 'square' }, g))).toBe(true);
   });
 });
