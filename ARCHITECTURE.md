@@ -229,8 +229,11 @@ LogoDocument
   → boolean      fold shapes in order: add = unite, cut = subtract, intersect = intersect
                  (skipped when there is a single add shape with no self-intersection)
   → recover      Paper.js cubics → L/A segments matched to source circles
-  → joints       fillet corners whose two segments come from different shapes, using the
-                 later shape's jointRadius (L–L, L–A, A–A fillets, solved analytically; clamped)
+  → joints       fillet corners whose two edges come from different shape instances (repeat copies
+                 count as different instances), using the later shape's jointRadius. One construction
+                 for L–L, L–A and A–A: offset both edges by ρ towards the turn, cross the offsets for the
+                 centre, project back for the tangent points; accept only a centre exactly ρ from both
+                 edges; clamp by bisection when it doesn't fit (src/pipeline/joints.ts)
   → pieces       split into connected pieces: each outer contour + the holes inside it
   → Mark         { pieces: Piece[], invalid: Issue[], clamped: Issue[] }
 ```

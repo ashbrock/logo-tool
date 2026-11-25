@@ -9,6 +9,10 @@ import { lattice, type Lattice } from '../src/geometry/lattice';
 import { add, scale, sub as vsub, type Vec2 } from '../src/geometry/num';
 import { writePath, fmt } from '../src/export/write-path';
 import { outlineStroke, type StrokeInput } from '../src/geometry/strokes';
+import { createRequire } from 'node:module';
+import { makePaperEngine } from '../src/boolean/paper-adapter';
+import { evaluateMark, type PlaneShape } from '../src/pipeline/evaluate';
+import { expandRepeat, type PlaneRepeat } from '../src/geometry/repeat';
 import { defaultGrid, toPlane, type GridDef } from '../src/grids';
 
 const PX_PER_CELL = 56;
@@ -309,6 +313,106 @@ function renderStrokeSpecimen(spec: StrokeSpecimen): string {
 </figure>`;
 }
 
+// ---- Merge, cut and intersect --------------------------------------------------------------------
+
+const engine = makePaperEngine(createRequire(import.meta.url)('paper-jsdom') as typeof import('paper'));
+
+interface BoolSpecimen {
+  name: string;
+  note: string;
+  cells: { w: number; h: number };
+  shapes: PlaneShape[];
+  expectedArea?: number;
+}
+
+const flat = (n: number): CornerSpec[] => Array.from({ length: n }, () => ({ type: 'round', r: 0 }));
+const pg = (pts: [number, number][], corners?: CornerSpec[]): Contour =>
+  outlineClosed(pts.map(([x, y]) => ({ x, y })), corners ?? flat(pts.length)).contour!;
+const disc = (x: number, y: number, r: number): Contour => outlineClosed([{ x, y }], [{ type: 'outer', r }]).contour!;
+const sh = (id: string, role: PlaneShape['role'], contours: Contour[], jointRadius = 0, repeat: PlaneRepeat = { kind: 'none' }): PlaneShape => ({ id, role, contours, repeat, jointRadius });
+const lensArea = (r: number, d: number) => 2 * r * r * Math.acos(d / (2 * r)) - (d / 2) * Math.sqrt(4 * r * r - d * d);
+
+const boltPts: [number, number][] = [[3, 0.5], [1.5, 3], [3, 3], [3, 4.5], [4.5, 2], [3, 2]];
+const r2: CornerSpec = { type: 'round', r: 1.5 };
+const rayStroke = outlineStroke({ points: [{ x: 3, y: 3 }, { x: 3, y: 0 }], segments: [{ kind: 'line' }], closed: false, radii: [0, 0], width: 0.12, cap: 'butt', join: 'miter', endRadius: 0 }).contours;
+const ringStroke = outlineStroke({
+  points: [{ x: 1, y: 3 }, { x: 5, y: 3 }], segments: [{ kind: 'arc', centre: { x: 3, y: 3 }, sweep: 1 }, { kind: 'arc', centre: { x: 3, y: 3 }, sweep: 1 }],
+  closed: true, radii: [0, 0], width: 1.2, cap: 'butt', join: 'round', endRadius: 0,
+}).contours;
+
+const BOOL_SPECIMENS: BoolSpecimen[] = [
+  {
+    name: 'Merge', note: 'two circles added: one outline, exact arcs on both circles', cells: { w: 6, h: 6 },
+    shapes: [sh('a', 'add', [disc(2.25, 3, 1.5)]), sh('b', 'add', [disc(3.75, 3, 1.5)])],
+    expectedArea: 2 * Math.PI * 2.25 - lensArea(1.5, 1.5),
+  },
+  {
+    name: 'Merge, joint 0.40', note: 'the same, with the second circle’s joint radius filleting where they meet', cells: { w: 6, h: 6 },
+    shapes: [sh('a', 'add', [disc(2.25, 3, 1.5)]), sh('b', 'add', [disc(3.75, 3, 1.5)], 0.4)],
+  },
+  {
+    name: 'Thunderbolt cut', note: 'a block with two round corners, minus a bolt whose tips touch its edges: two pieces', cells: { w: 6, h: 5 },
+    shapes: [sh('block', 'add', [pg([[0, 0.5], [6, 0.5], [6, 4.5], [0, 4.5]], [r2, { type: 'round', r: 0 }, r2, { type: 'round', r: 0 }])]), sh('bolt', 'cut', [pg(boltPts)])],
+  },
+  {
+    name: 'Striped circle', note: 'a circle minus one thin stripe repeated ×5 along a line', cells: { w: 6, h: 6 },
+    shapes: [sh('disc', 'add', [disc(3, 3, 2.75)]), sh('gap', 'cut', [pg([[-0.5, 0.9], [6.5, 0.9], [6.5, 1.1], [-0.5, 1.1]])], 0, { kind: 'translate', step: { x: 0, y: 1 }, count: 5 })],
+  },
+  {
+    name: 'Sun (8-fold)', note: 'two bars with one round corner each, repeated ×8 on a square grid; copies are exact rotations', cells: { w: 6, h: 6 },
+    shapes: [
+      sh('upper', 'add', [pg([[2.75, 0.25], [3.25, 0.25], [3.25, 1.25], [2.75, 1.25]], [{ type: 'round', r: 0 }, { type: 'round', r: 0 }, { type: 'round', r: 0 }, { type: 'round', r: 0.2 }])], 0, { kind: 'rotate', centre: { x: 3, y: 3 }, count: 8, mirrored: false }),
+      sh('lower', 'add', [pg([[3.25, 1.25], [3.75, 1.25], [3.75, 2.25], [3.25, 2.25]], [{ type: 'round', r: 0 }, { type: 'round', r: 0.2 }, { type: 'round', r: 0 }, { type: 'round', r: 0 }])], 0, { kind: 'rotate', centre: { x: 3, y: 3 }, count: 8, mirrored: false }),
+    ],
+  },
+  {
+    name: 'Hatched ring', note: 'one thin ray stroke repeated ×36, intersected with a ring', cells: { w: 6, h: 6 },
+    shapes: [sh('rays', 'add', [...rayStroke], 0, { kind: 'rotate', centre: { x: 3, y: 3 }, count: 36, mirrored: false }), sh('ring', 'intersect', [...ringStroke])],
+  },
+  {
+    name: 'Clipped fan, joint 0.15', note: 'a wedge repeated ×6, intersected with a frame whose joint radius rounds the clip corners (m-logo-1)', cells: { w: 6, h: 6 },
+    shapes: [
+      sh('wedge', 'add', [pg([[3, 3], [3 + 4 * Math.cos(-0.25), 3 + 4 * Math.sin(-0.25)], [3 + 4 * Math.cos(0.25), 3 + 4 * Math.sin(0.25)]])], 0, { kind: 'rotate', centre: { x: 3, y: 3 }, count: 6, mirrored: false }),
+      sh('frame', 'intersect', [pg([[0.5, 1], [5.5, 1], [5.5, 5], [0.5, 5]])], 0.15),
+    ],
+  },
+  {
+    name: 'Plus, joint 0.20', note: 'one bar repeated ×4: the copies’ own crossings are filleted', cells: { w: 6, h: 6 },
+    shapes: [sh('bar', 'add', [pg([[1, 2.5], [5, 2.5], [5, 3.5], [1, 3.5]])], 0.2, { kind: 'rotate', centre: { x: 3, y: 3 }, count: 4, mirrored: false })],
+    expectedArea: 7 + 4 * (1 - Math.PI / 4) * 0.04,
+  },
+];
+
+function renderBoolSpecimen(spec: BoolSpecimen): string {
+  const m = 0.5;
+  const vb = `${-m} ${-m} ${spec.cells.w + 2 * m} ${spec.cells.h + 2 * m}`;
+  const w = (spec.cells.w + 2 * m) * PX_PER_CELL, h = (spec.cells.h + 2 * m) * PX_PER_CELL;
+  const mark = evaluateMark(spec.shapes, engine);
+  const contours = mark.pieces.flatMap((p) => [p.outer, ...p.holes]);
+  const area = contours.reduce((a, c) => a + contourArea(c), 0);
+  const arcs = contours.reduce((a, c) => a + c.segs.filter((s) => s.kind === 'A').length, 0);
+  // Cut and intersect shapes are construction: dashed outlines (DESIGN.md §4), repeat copies included.
+  const construction = spec.shapes.filter((s) => s.role !== 'add').map((s) =>
+    `<path d="${writePath(expandRepeat(s.contours, s.repeat).flat(), { scale: 1, precision: 4 })}" fill="none" stroke="var(--canvas-cut)" stroke-width="1.25" stroke-dasharray="6 4" ${ve}/>`).join('');
+  const lines = [`${mark.pieces.length} piece${mark.pieces.length === 1 ? '' : 's'} · area ${fmt(area, 4)}${spec.expectedArea !== undefined ? ` · expected ${fmt(spec.expectedArea, 4)} ${Math.abs(area - spec.expectedArea) < 1e-9 ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}` : ''} · ${arcs} arcs`];
+  for (const e of mark.errors) lines.push(`<span class="bad">${e.message}</span>`);
+  for (const i of mark.issues) lines.push(`<span class="warn">joint at (${fmt(i.at.x, 2)}, ${fmt(i.at.y, 2)}): ${fmt(i.actual, 3)} of ${fmt(i.requested, 2)}</span>`);
+  return `<figure class="spec">
+  <svg viewBox="${vb}" width="${w}" height="${h}" role="img" aria-label="${spec.name}">
+    <rect x="${-m}" y="${-m}" width="${spec.cells.w + 2 * m}" height="${spec.cells.h + 2 * m}" fill="var(--canvas-bg)"/>
+    ${gridLayer(spec.cells)}
+    <path d="${writePath(contours, { scale: 1, precision: 4 })}" fill="var(--canvas-mark)"/>
+    ${construction}
+  </svg>
+  <figcaption>
+    <h2>${spec.name}</h2>
+    <p class="note">${spec.note}</p>
+    ${lines.map((l) => `<p class="data">${l}</p>`).join('')}
+    <details><summary>Path data (100 units per cell)</summary><code>${writePath(contours, { scale: 100, precision: 3 })}</code></details>
+  </figcaption>
+</figure>`;
+}
+
 export function renderGalleryHtml(tokensCss: string, meta: { commit: string }): string {
   return `<title>Geometry Gallery</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -356,6 +460,11 @@ ${SPECIMENS.map(renderSpecimen).join('\n')}
   <p class="intro">Strokes are outlined exactly: lines offset to parallel lines, arcs to arcs around the same centre. The dashed line is the centre line. A stroke with no overlaps has area = width × centre-line length, plus its caps.</p>
   <section class="sheet">
 ${STROKE_SPECIMENS.map(renderStrokeSpecimen).join('\n')}
+  </section>
+  <h2 class="section">Merge, cut and intersect</h2>
+  <p class="intro">Shapes fold in order through Paper.js, then every curve is recovered as an exact line or source arc and every corner is recomputed as an exact crossing. Dashed outlines are cut and intersect shapes. A joint radius fillets the corners an operation creates.</p>
+  <section class="sheet">
+${BOOL_SPECIMENS.map(renderBoolSpecimen).join('\n')}
   </section>
   <footer>Built from commit ${meta.commit}. IBM Plex isn't bundled yet, so the type uses its fallback stack.</footer>
 </main>`;

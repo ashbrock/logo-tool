@@ -20,12 +20,16 @@ import type { Cubic, CubicContour } from './paper-adapter';
 export interface Circle {
   readonly centre: Vec2;
   readonly r: number;
+  /** Which shape instances this circle came from (for joint radii). */
+  readonly tags?: readonly number[];
 }
 
 /** An infinite source line: a point on it and a unit direction. */
 export interface Line {
   readonly p: Vec2;
   readonly d: Vec2;
+  /** Which shape instances this line came from (for joint radii). */
+  readonly tags?: readonly number[];
 }
 
 export class RecoveryError extends Error {
@@ -87,10 +91,10 @@ function matchLine(a: Vec2, b: Vec2, lines: readonly Line[]): Line | null {
   return best;
 }
 
-type Carrier = { kind: 'line'; line: Line } | { kind: 'circle'; circle: Circle };
+export type Carrier = { kind: 'line'; line: Line } | { kind: 'circle'; circle: Circle };
 
 /** Exact crossing of two carriers nearest the approximate point, or null if they don't cross. */
-function crossing(a: Carrier, b: Carrier, near: Vec2): Vec2 | null {
+export function crossing(a: Carrier, b: Carrier, near: Vec2): Vec2 | null {
   const nearest = (cands: Vec2[]) => cands.reduce<Vec2 | null>((best, q) => (!best || len(sub(q, near)) < len(sub(best, near)) ? q : best), null);
   if (a.kind === 'line' && b.kind === 'line') {
     const den = cross(a.line.d, b.line.d);
@@ -123,6 +127,13 @@ const sameCircle = (a: Circle, b: Circle) => Math.abs(a.r - b.r) < 1e-9 * Math.m
 const sameLine = (a: Line, b: Line) => Math.abs(cross(a.d, b.d)) < 1e-9 && distToLine(b.p, a) < 1e-9;
 
 export function recoverContour(cc: CubicContour, circles: readonly Circle[], lines: readonly Line[] = []): Contour {
+  return recoverContourTagged(cc, circles, lines).contour;
+}
+
+/** Recovery that also reports, for each output segment, the source line or circle it lies on. */
+export function recoverContourTagged(
+  cc: CubicContour, circles: readonly Circle[], lines: readonly Line[] = [],
+): { contour: Contour; carriers: (Carrier | null)[] } {
   // 1. Classify.
   type Piece = { from: Vec2; to: Vec2; carrier: Carrier | null; sign: 1 | -1; approxSweep: number };
   const pieces: Piece[] = [];
@@ -146,7 +157,7 @@ export function recoverContour(cc: CubicContour, circles: readonly Circle[], lin
     }
     p = c.to;
   }
-  if (pieces.length === 0) return { start: cc.start, segs: [] };
+  if (pieces.length === 0) return { contour: { start: cc.start, segs: [] }, carriers: [] };
 
   // 2. Merge runs.
   const sameCarrier = (a: Piece, b: Piece): boolean => {
@@ -194,9 +205,10 @@ export function recoverContour(cc: CubicContour, circles: readonly Circle[], lin
 
   // 4. Emit, splitting a whole circle (or more) into halves so no arc ends where it starts.
   const segs: Seg[] = [];
+  const carriers: (Carrier | null)[] = [];
   for (let i = 0; i < n; i++) {
     const m = merged[i]!, from = vertex[i]!, to = vertex[(i + 1) % n]!;
-    if (!m.carrier || m.carrier.kind === 'line') { segs.push({ kind: 'L', to }); continue; }
+    if (!m.carrier || m.carrier.kind === 'line') { segs.push({ kind: 'L', to }); carriers.push(m.carrier); continue; }
     const k = m.carrier.circle;
     const a0 = Math.atan2(from.y - k.centre.y, from.x - k.centre.x), a1 = Math.atan2(to.y - k.centre.y, to.x - k.centre.x);
     let mag = ((((m.sign * (a1 - a0)) % TAU) + TAU) % TAU);
@@ -210,8 +222,9 @@ export function recoverContour(cc: CubicContour, circles: readonly Circle[], lin
       const a = Math.atan2(cur.y - k.centre.y, cur.x - k.centre.x) + sweep / parts;
       const end = j === parts ? to : { x: k.centre.x + k.r * Math.cos(a), y: k.centre.y + k.r * Math.sin(a) };
       segs.push({ kind: 'A', to: end, centre: k.centre, r: k.r, sweep: sweep / parts });
+      carriers.push(m.carrier);
       cur = end;
     }
   }
-  return { start: vertex[0]!, segs };
+  return { contour: { start: vertex[0]!, segs }, carriers };
 }
