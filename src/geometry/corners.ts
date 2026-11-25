@@ -9,6 +9,9 @@
  *           outline wraps it: outer passes it on the outside (offset ρ = +r), inward on the inside
  *           (ρ = −r, a concave bite). 'auto' is outer where the outline turns convex and inward
  *           where it turns concave.
+ * - disc:   a corner type against the corner (inward on convex → cove; outer on concave → filled
+ *           corner). The disc of radius r centred on the point is removed or added; real corners remain
+ *           where its arc meets the edges.
  *
  * Pass 1 finds each edge as the line keeping signed offset ρᵢ from circle i and ρⱼ from circle j
  * (fillet and sharp points have ρ = 0). Writing D = Cⱼ − Cᵢ, L = |D| and δ = ρᵢ − ρⱼ, the
@@ -52,7 +55,9 @@ export interface OutlineResult {
   readonly issues: readonly CornerIssue[];
   readonly edges: readonly Edge[];
   /** For drawing radius circles: the circle actually used at each point, or null if sharp. */
-  readonly circles: readonly ({ centre: Vec2; r: number; kind: 'fillet' | 'outer' | 'inward' } | null)[];
+  readonly circles: readonly ({ centre: Vec2; r: number; kind: 'fillet' | 'outer' | 'inward' | 'cove' | 'fill' } | null)[];
+  /** Positions where the outline deliberately has a corner (sharp points, and both ends of coves and filled corners). */
+  readonly corners: readonly Vec2[];
 }
 
 const EPS = 1e-12;
@@ -70,7 +75,7 @@ function signedArea(pts: readonly Vec2[]): number {
 
 export function outlineClosed(points: readonly Vec2[], corners: readonly CornerSpec[]): OutlineResult {
   const n = points.length;
-  const empty = (issue: CornerIssue): OutlineResult => ({ contour: null, issues: [issue], edges: [], circles: [] });
+  const empty = (issue: CornerIssue): OutlineResult => ({ contour: null, issues: [issue], edges: [], circles: [], corners: [] });
   if (n < 2) return empty({ kind: 'degenerate', reason: 'too-few-points' });
   for (let i = 0; i < n; i++) {
     if (len(sub(points[(i + 1) % n] as Vec2, points[i] as Vec2)) < EPS) return empty({ kind: 'degenerate', reason: 'coincident-points' });
@@ -82,19 +87,37 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
   const area = signedArea(points);
   const o = area < -EPS ? -1 : 1;
 
+  /** How the polygon turns at point i, relative to its orientation. */
+  const shapeAt = (i: number): 'convex' | 'concave' | 'straight' | 'reversal' => {
+    const din = sub(P(i), P(i - 1)), dout = sub(P(i + 1), P(i));
+    const t = cross(din, dout) * o;
+    if (Math.abs(t) < EPS * len(din) * len(dout)) return dot(din, dout) > 0 ? 'straight' : 'reversal';
+    return t > 0 ? 'convex' : 'concave';
+  };
+
   // Resolve each point's role and signed offset ρ.
-  type Role = { kind: 'sharp' } | { kind: 'fillet'; r: number } | { kind: 'wrap'; r: number; s: 1 | -1 };
+  // A corner type that goes against the corner (inward on a convex corner, outer on a concave one)
+  // becomes a disc centred on the point: removed (a cove) or added (a filled corner). The point stays a
+  // corner of the edges, and the arc meets each edge r from the point (SPEC.md §6.6).
+  type Role =
+    | { kind: 'sharp' }
+    | { kind: 'fillet'; r: number }
+    | { kind: 'wrap'; r: number; s: 1 | -1 }
+    | { kind: 'disc'; r: number; s: 1 | -1 };
   const roles: Role[] = points.map((_, i) => {
     const c = corners[i] as CornerSpec;
     if (!(c.r > 0)) return { kind: 'sharp' };
     if (c.type === 'round') return { kind: 'fillet', r: c.r };
-    if (c.type === 'outer') return { kind: 'wrap', r: c.r, s: 1 };
-    if (c.type === 'inward') return { kind: 'wrap', r: c.r, s: -1 };
+    const at = shapeAt(i);
+    if (c.type === 'outer') return at === 'concave' ? { kind: 'disc', r: c.r, s: 1 } : { kind: 'wrap', r: c.r, s: 1 };
+    if (c.type === 'inward') {
+      if (at === 'convex') return { kind: 'disc', r: c.r, s: -1 };
+      if (at === 'reversal') return { kind: 'sharp' }; // a cove in a zero-width hairpin removes nothing
+      return { kind: 'wrap', r: c.r, s: -1 };
+    }
     // auto: convex → outer, concave → inward. Straight-through points stay sharp; reversals wrap outside.
-    const din = sub(P(i), P(i - 1)), dout = sub(P(i + 1), P(i));
-    const t = cross(din, dout) * o;
-    if (Math.abs(t) < EPS * len(din) * len(dout)) return dot(din, dout) > 0 ? { kind: 'sharp' } : { kind: 'wrap', r: c.r, s: 1 };
-    return { kind: 'wrap', r: c.r, s: t > 0 ? 1 : -1 };
+    if (at === 'straight') return { kind: 'sharp' };
+    return { kind: 'wrap', r: c.r, s: at === 'concave' ? -1 : 1 };
   });
   const rho = (i: number): number => { const r = roles[((i % n) + n) % n] as Role; return r.kind === 'wrap' ? r.s * r.r : 0; };
 
@@ -115,7 +138,8 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
         // one is merely below its lower limit, and the fix is to shrink the big one.
         const max = Math.max(0, L + role.s * rho(other));
         if (role.r < max - 1e-9) continue; // same tolerance as the edge test above
-        noTangent.set(k, Math.min(noTangent.get(k) ?? Infinity, max));
+        // Within the tolerance the computed limit can exceed the request by float noise; it never really does.
+        noTangent.set(k, Math.min(noTangent.get(k) ?? Infinity, max, role.r));
       }
       edges.push({ from: P(i), to: P(j), dir: { x: D.x / L, y: D.y / L } });
       continue;
@@ -131,14 +155,16 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
     const issues: CornerIssue[] = [...noTangent].sort((x, y) => x[0] - y[0]).map(([index, maxRadius]) => ({
       kind: 'no-tangent', index, requested: (corners[index] as CornerSpec).r, maxRadius,
     }));
-    return { contour: null, issues, edges, circles: [] };
+    return { contour: null, issues, edges, circles: [], corners: [] };
   }
 
   const E = (i: number): Edge => edges[((i % n) + n) % n] as Edge;
 
-  // Pass 2: fillets. Each wants a tangent length t = r·tan(|turn|/2) along both of its edges.
+  // Pass 2: fillets and discs. A fillet wants a tangent length t = r·tan(|turn|/2) along both of its
+  // edges; a disc wants r along both (its arc meets each edge r from the point).
   const turns = points.map((_, i) => signedTurn(E(i - 1).dir, E(i).dir));
   const want = roles.map((role, i) => {
+    if (role.kind === 'disc') return role.r;
     if (role.kind !== 'fillet') return 0;
     const tn = Math.abs(turns[i] as number);
     if (tn < 1e-12) return 0;
@@ -157,10 +183,27 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
   }
 
   const issues: CornerIssue[] = [];
+  const cornerPts: Vec2[] = [];
   type Piece = { entry: Vec2; exit: Vec2; arc: Seg | null; circle: OutlineResult['circles'][number] };
   const pieces: Piece[] = roles.map((role, i) => {
     const ein = E(i - 1), eout = E(i);
-    if (role.kind === 'sharp') return { entry: P(i), exit: P(i), arc: null, circle: null };
+    if (role.kind === 'sharp') { cornerPts.push(P(i)); return { entry: P(i), exit: P(i), arc: null, circle: null }; }
+    if (role.kind === 'disc') {
+      // Cove (s = −1) or filled corner (s = +1): an arc centred on the point spanning the corner's
+      // own opening, π − |turn|, meeting both edges at distance d from the point.
+      const d = Math.min(allowStart[i] as number, allowEnd[i] as number, role.r);
+      const mag = Math.PI - Math.abs(turns[i] as number);
+      const a = sub(P(i), scale(ein.dir, d)), b = add(P(i), scale(eout.dir, d));
+      const none = d < 1e-12 || mag < 1e-9 || len(sub(b, a)) < 1e-9;
+      if (d < role.r - 1e-9 || none) issues.push({ kind: 'clamped', index: i, requested: role.r, actual: none ? 0 : d });
+      if (none) { cornerPts.push(P(i)); return { entry: P(i), exit: P(i), arc: null, circle: null }; }
+      cornerPts.push(a, b);
+      return {
+        entry: a, exit: b,
+        arc: { kind: 'A', to: b, centre: P(i), r: d, sweep: o * role.s * mag },
+        circle: { centre: P(i), r: d, kind: role.s > 0 ? 'fill' : 'cove' },
+      };
+    }
     if (role.kind === 'fillet') {
       const turn = turns[i] as number;
       const t = Math.min(allowStart[i] as number, allowEnd[i] as number, want[i] as number);
@@ -171,7 +214,7 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
       // A hairpin (turn ≈ 180°) leaves no width for a fillet: its ends would coincide. Keep it sharp.
       const none = !(rActual > 1e-12) || t < 1e-12 || len(sub(fout, fin)) < 1e-9;
       if (rActual < role.r - 1e-9 || none) issues.push({ kind: 'clamped', index: i, requested: role.r, actual: none ? 0 : rActual });
-      if (none) return { entry: P(i), exit: P(i), arc: null, circle: null };
+      if (none) { cornerPts.push(P(i)); return { entry: P(i), exit: P(i), arc: null, circle: null }; }
       const centre = add(fin, scale(perp(ein.dir), Math.sign(turn) * rActual));
       return { entry: fin, exit: fout, arc: { kind: 'A', to: fout, centre, r: rActual, sweep: turn }, circle: { centre, r: rActual, kind: 'fillet' } };
     }
@@ -198,5 +241,5 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
   const last = segs[segs.length - 1];
   if (last) segs[segs.length - 1] = { ...last, to: start };
 
-  return { contour: { start, segs }, issues, edges, circles: pieces.map((p) => p.circle) };
+  return { contour: { start, segs }, issues, edges, circles: pieces.map((p) => p.circle), corners: cornerPts };
 }

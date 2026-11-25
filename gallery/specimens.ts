@@ -66,8 +66,15 @@ const SPECIMENS: Specimen[] = [
     pts: [[1, 2], [3, 2], [2, 3], [0, 3], [0, 2], [1, 1]], corners: all('round', 14 / 240),
   },
   {
-    name: 'Inward on a convex corner', note: 'loops through itself. Known: the boolean pass (not built yet) resolves this (SPEC §9.2)', cells: { w: 4, h: 4 },
+    name: 'Cove', note: 'inward 0.75 on a convex corner: a quarter-disc scoop centred on the point, crisp where it meets the edges', cells: { w: 4, h: 4 },
     pts: SQ, corners: (n) => Array.from({ length: n }, (_, i) => ({ type: i === 0 ? 'inward' : 'round', r: i === 0 ? 0.75 : 0 })),
+    expectedArea: 4 - (Math.PI * 0.75 * 0.75) / 4,
+  },
+  {
+    name: 'Filled corner', note: 'outer 0.75 on a concave corner: the disc is added into the notch', cells: { w: 4, h: 4 },
+    pts: [[0.5, 0.5], [3.5, 0.5], [3.5, 2], [2, 2], [2, 3.5], [0.5, 3.5]],
+    corners: (n) => Array.from({ length: n }, (_, i) => ({ type: i === 3 ? 'outer' : 'round', r: i === 3 ? 0.75 : 0 })),
+    expectedArea: 6.75 + (Math.PI * 0.75 * 0.75) / 4,
   },
 ];
 
@@ -113,7 +120,7 @@ function circlesLayer(res: OutlineResult, spec: Specimen, plane: Vec2[]): string
     if (!c) return;
     const clamped = res.issues.some((x) => x.kind === 'clamped' && x.index === i);
     const colour = clamped ? 'var(--canvas-clamped)' : 'var(--canvas-radius)';
-    const dash = c.kind === 'inward' ? 'stroke-dasharray="4 3"' : '';
+    const dash = c.kind === 'inward' || c.kind === 'cove' ? 'stroke-dasharray="4 3"' : '';
     s += `<circle cx="${c.centre.x}" cy="${c.centre.y}" r="${c.r}" fill="none" stroke="${colour}" stroke-width="1.25" ${dash} ${ve}/>`;
     if (c.kind === 'fillet') s += `<circle cx="${c.centre.x}" cy="${c.centre.y}" r="${px(1.5)}" fill="${colour}"/>`;
     if (clamped) {
@@ -239,7 +246,7 @@ footer { color: var(--color-text-muted); font-size: var(--type-micro-size); bord
   <header>
     <h1>Geometry gallery</h1>
     <p>Real output of the corner geometry, drawn with the Drafting film canvas styles. Every point is a lattice point on a square grid with half-cell steps, every outline is lines and exact circular arcs, and the path data is what the export writer produces. Areas are checked against closed-form answers where one exists.</p>
-    <div class="legend"><span><i></i>outer or fillet circle (dot = fillet centre)</span><span><i class="dash"></i>inward circle</span><span><i class="clamp"></i>clamped fillet</span><span><i class="bad"></i>invalid</span></div>
+    <div class="legend"><span><i></i>outer or fillet circle (dot = fillet centre)</span><span><i class="dash"></i>inward or cove circle</span><span><i class="clamp"></i>clamped fillet</span><span><i class="bad"></i>invalid</span></div>
   </header>
   <section class="sheet">
 ${SPECIMENS.map(renderSpecimen).join('\n')}

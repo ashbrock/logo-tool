@@ -139,12 +139,48 @@ describe('corners: closed-form checks', () => {
   });
 
   it('reports an inward corner with no room for the cross tangent', () => {
-    const pts = [vec(0, 0), vec(1, 0), vec(1, 3), vec(0, 3)];
-    const corners: CornerSpec[] = [{ type: 'inward', r: 0.6 }, { type: 'outer', r: 0.6 }, { type: 'outer', r: 0 }, { type: 'outer', r: 0 }];
+    // An L: inward on its concave corner (1, 1), outer on the convex neighbour (2, 1), 1 apart.
+    const pts = [vec(0, 0), vec(2, 0), vec(2, 1), vec(1, 1), vec(1, 2), vec(0, 2)];
+    const corners: CornerSpec[] = pts.map(() => ({ type: 'round', r: 0 }));
+    corners[2] = { type: 'outer', r: 0.6 };
+    corners[3] = { type: 'inward', r: 0.6 };
     const { contour, issues } = outlineClosed(pts, corners);
     expect(contour).toBeNull();
-    // Opposite sides on edge 0→1 (L = 1): r0 + r1 < 1, so each fits up to 0.4 given the other's 0.6.
-    expect(issues).toContainEqual({ kind: 'no-tangent', index: 0, requested: 0.6, maxRadius: expect.closeTo(0.4, 12) });
+    // Opposite sides on that edge (L = 1): r2 + r3 < 1, so each fits up to 0.4 given the other's 0.6.
+    expect(issues).toContainEqual({ kind: 'no-tangent', index: 3, requested: 0.6, maxRadius: expect.closeTo(0.4, 12) });
+    expect(issues).toContainEqual({ kind: 'no-tangent', index: 2, requested: 0.6, maxRadius: expect.closeTo(0.4, 12) });
+  });
+
+  it('inward on a convex corner makes a cove: the unit square loses a quarter disc, 1 − πr²/4', () => {
+    const r = 0.4;
+    const corners: CornerSpec[] = UNIT.map((_, i) => ({ type: i === 1 ? 'inward' : 'round', r: i === 1 ? r : 0 }));
+    const res = outlineClosed(UNIT, corners);
+    expect(res.issues).toEqual([]);
+    expect(Math.abs(contourArea(res.contour as Contour))).toBeCloseTo(1 - (Math.PI * r * r) / 4, 12);
+    expect(res.circles[1]?.kind).toBe('cove');
+    expect(res.corners).toHaveLength(5); // three sharp corners + both ends of the cove
+    expect(checkContour(res.contour as Contour, res.corners)).toBeNull();
+    // Both ends of the cove sit on the square's edges, r from the corner.
+    expect(res.corners).toContainEqual(vec(1 - r, 0));
+    expect(res.corners).toContainEqual(vec(1, r));
+  });
+
+  it('outer on a concave corner fills it: an L gains a quarter disc, 3 + πr²/4', () => {
+    const L = [vec(0, 0), vec(2, 0), vec(2, 1), vec(1, 1), vec(1, 2), vec(0, 2)];
+    const r = 0.5;
+    const corners: CornerSpec[] = L.map((_, i) => ({ type: i === 3 ? 'outer' : 'round', r: i === 3 ? r : 0 }));
+    const res = outlineClosed(L, corners);
+    expect(res.issues).toEqual([]);
+    expect(res.circles[3]?.kind).toBe('fill');
+    expect(Math.abs(contourArea(res.contour as Contour))).toBeCloseTo(3 + (Math.PI * r * r) / 4, 12);
+    expect(checkContour(res.contour as Contour, res.corners)).toBeNull();
+  });
+
+  it('clamps a cove to the room on its edges, and reports it', () => {
+    const corners: CornerSpec[] = UNIT.map((_, i) => ({ type: i === 1 ? 'inward' : 'round', r: i === 1 ? 3 : 0 }));
+    const res = outlineClosed(UNIT, corners);
+    expect(res.issues).toEqual([{ kind: 'clamped', index: 1, requested: 3, actual: 1 }]);
+    expect(Math.abs(contourArea(res.contour as Contour))).toBeCloseTo(1 - Math.PI / 4, 12);
   });
 
   it('flags degenerate input instead of drawing it', () => {
@@ -171,14 +207,13 @@ describe('P4: every arc is valid and every arc joins its neighbours tangentially
   it('holds for random shapes, corner types and radii', () => {
     fc.assert(
       fc.property(shapeArb, ({ pts, corners }) => {
-        const { contour, issues, circles } = outlineClosed(pts, corners);
+        const { contour, issues, corners: cornerPts } = outlineClosed(pts, corners);
         if (!contour) {
           // P7: no contour only ever comes with a reason.
           expect(issues.some((i) => i.kind === 'no-tangent' || i.kind === 'degenerate')).toBe(true);
           return;
         }
-        const sharp = pts.filter((_, i) => circles[i] === null);
-        expect(checkContour(contour, sharp)).toBeNull();
+        expect(checkContour(contour, cornerPts)).toBeNull();
       }),
       { numRuns: RUNS },
     );

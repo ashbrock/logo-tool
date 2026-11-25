@@ -153,6 +153,8 @@ Press R to cycle auto → outer → round → inward (Shift+R reverses), or use 
 | **round** | classic fillet: the corner stays on the point and an arc of the radius replaces the tip | crisp shapes with rounded corners (e-logo-3) |
 | **inward** | outline wraps the inside of a circle centred on the point, biting a concave arc | star cut-ins, node-logo's centre |
 
+**Against the corner.** Inward on a **convex** corner makes a **cove**: the disc of radius r centred on the point is removed, leaving a quarter-circle scoop that meets both edges r from the point, with crisp corners there. Outer on a **concave** corner makes a **filled corner**: the disc is added into the notch, the same way. Both clamp to the room on their edges (§9.4).
+
 At radius 0 all four types give a sharp corner exactly on the point.
 
 ### 6.7 Add a cutout (and merge or intersect)

@@ -134,7 +134,8 @@ Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are wri
 | Selected point | 7 × 7 px filled `--canvas-selection` square + 12 px radius ring 1.5 px | over halo |
 | Snap preview | crosshair, arms 9 px, 1.5 px + 6 px dashed ring (2 2) | |
 | Radius circle (outer) | 1.25 px solid | `--canvas-radius` |
-| Radius circle (inward) | 1.25 px dashed 4 3 | `--canvas-radius` |
+| Radius circle (inward, cove) | 1.25 px dashed 4 3 | `--canvas-radius` |
+| Radius circle (filled corner) | 1.25 px solid | `--canvas-radius` |
 | Fillet circle (round) | 1.25 px solid + 3 px centre dot | `--canvas-radius` |
 | Arc centre | 7 px cross | `--canvas-radius` |
 | Cut / intersect outline | 1.25 px dashed 6 4 | `--canvas-cut` |
