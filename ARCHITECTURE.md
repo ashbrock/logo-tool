@@ -257,7 +257,9 @@ Paper.js approximates arcs with cubics of at most 90°: *"Calculate amount of se
 ### 5.2 Arc recovery
 
 Every source arc's (centre, r) is known. For each cubic in the boolean result:
-1. Match it to a source circle. Its endpoints must lie on the circle within 1e-6 cells: Paper.js computes those exactly as intersections or as the original segment ends. Its ¼, ½ and ¾ points must lie within 1e-3·r of the circle. Paper.js's arc cubics sit up to about 0.027% of r off the true circle (measured in the Paper.js test), so a tight interior tolerance would reject real arcs. When several circles match, the closest wins.
+1. **Classify** each cubic as a line (control points on the chord, matched to the source line it lies on), or an arc matched to a source circle. Its ends and ¼, ½ and ¾ points must lie within max(1e-5, 1e-3·r), and the closest circle wins. Paper's arc cubics sit about 2.7e-4·r off the true circle, so this is about 4× that. Measured on 5,445 random shapes, it gives 0 failures, while 1e-4·r failed about 3%.
+   **Exact corners:** every corner is then recomputed as the exact crossing of its two neighbours (line–line, line–circle, circle–circle). Paper computes crossings between its approximations, so its corner points are slightly off the true geometry.
+   **Arcs reach Paper as our own cubics** (≤ 90°, control length 4/3·tan(θ/4)·r), because Paper's `arcTo` throws on tiny, nearly straight arcs.
 2. Merge consecutive cubics on the same circle into one `A` segment (splitting at 180° so `large` stays meaningful).
 3. Cubics whose control points are collinear with their endpoints become `L`.
 4. Anything left unmatched is a **pipeline error**: it fails loudly in development and is reported as an issue in production. It's never exported as a cubic, because the model can't create one.

@@ -30,6 +30,12 @@ function checkContour(c: Contour, sharp: readonly Vec2[] = []): string | null {
       if (Math.abs(len(sub(from, s.centre)) - s.r) > 1e-9 || Math.abs(len(sub(s.to, s.centre)) - s.r) > 1e-9) return `arc ${i}: endpoint off circle`;
       if (len(sub(s.to, from)) > 2 * s.r * (1 + 1e-9)) return `arc ${i}: chord longer than diameter (λ > 1)`;
       if (!(Math.abs(s.sweep) > 0 && Math.abs(s.sweep) < 2 * Math.PI)) return `arc ${i}: sweep ${s.sweep}`;
+      {
+        // The sweep must agree with the endpoints: rotating the start by the sweep lands on the end.
+        const a0 = Math.atan2(from.y - s.centre.y, from.x - s.centre.x) + s.sweep;
+        const land = { x: s.centre.x + s.r * Math.cos(a0), y: s.centre.y + s.r * Math.sin(a0) };
+        if (len(sub(land, s.to)) > 1e-9 * Math.max(1, s.r)) return `arc ${typeof i === 'number' ? i : ''}: sweep disagrees with endpoints`;
+      }
     }
     // Tangent continuity wherever an arc meets another segment.
     const next = c.segs[(i + 1) % n] as Contour['segs'][number];

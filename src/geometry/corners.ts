@@ -204,15 +204,20 @@ export function outlineClosed(points: readonly Vec2[], corners: readonly CornerS
       // Cove (s = −1) or filled corner (s = +1): an arc centred on the point spanning the corner's
       // own opening, π − |turn|, meeting both edges at distance d from the point.
       const d = Math.min(allowStart[i] as number, allowEnd[i] as number, role.r);
-      const mag = Math.PI - Math.abs(turns[i] as number);
       const a = sub(P(i), scale(ein.dir, d)), b = add(P(i), scale(eout.dir, d));
+      // The arc spans the corner's own opening (π − |turn| < π), so it is the short way from a to b
+      // around the point. Deriving the direction from the shape's winding instead goes wrong when big
+      // neighbouring wraps tilt the edges (found by recovery property tests).
+      const va = sub(a, P(i)), vb = sub(b, P(i));
+      const sweep = Math.atan2(cross(va, vb), dot(va, vb));
+      const mag = Math.abs(sweep);
       const none = d < 1e-12 || mag < 1e-9 || len(sub(b, a)) < 1e-9;
       if (d < role.r - 1e-9 || none) issues.push({ kind: 'clamped', index: i, requested: role.r, actual: none ? 0 : d });
       if (none) { cornerPts.push(P(i)); return { entry: P(i), exit: P(i), arc: null, circle: null }; }
       cornerPts.push(a, b);
       return {
         entry: a, exit: b,
-        arc: { kind: 'A', to: b, centre: P(i), r: d, sweep: o * role.s * mag },
+        arc: { kind: 'A', to: b, centre: P(i), r: d, sweep },
         circle: { centre: P(i), r: d, kind: role.s > 0 ? 'fill' : 'cove' },
       };
     }

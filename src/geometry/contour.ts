@@ -61,3 +61,44 @@ export function contourArea(c: Contour): number {
   }
   return a;
 }
+
+/** The same contour traversed the other way (arcs keep centre and radius, sweeps change sign). */
+export function reverseContour(c: Contour): Contour {
+  const starts = segStarts(c);
+  const segs: Seg[] = [];
+  for (let i = c.segs.length - 1; i >= 0; i--) {
+    const s = c.segs[i] as Seg, to = starts[i] as Vec2;
+    segs.push(s.kind === 'L' ? { kind: 'L', to } : { kind: 'A', to, centre: s.centre, r: s.r, sweep: -s.sweep });
+  }
+  return { start: c.start, segs };
+}
+
+/** A polygon through the contour, arcs sampled finely. For containment tests only, never for output. */
+export function flatten(c: Contour, perRadian = 24): Vec2[] {
+  const pts: Vec2[] = [c.start];
+  let p = c.start;
+  for (const s of c.segs) {
+    if (s.kind === 'A') {
+      const n = Math.max(2, Math.ceil(Math.abs(s.sweep) * perRadian));
+      const a0 = Math.atan2(p.y - s.centre.y, p.x - s.centre.x);
+      for (let i = 1; i < n; i++) {
+        const a = a0 + (s.sweep * i) / n;
+        pts.push({ x: s.centre.x + s.r * Math.cos(a), y: s.centre.y + s.r * Math.sin(a) });
+      }
+    }
+    pts.push(s.to);
+    p = s.to;
+  }
+  return pts;
+}
+
+/** Even-odd point-in-polygon on the flattened contour. */
+export function containsPoint(c: Contour, q: Vec2): boolean {
+  const poly = flatten(c);
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i] as Vec2, b = poly[j] as Vec2;
+    if (a.y > q.y !== b.y > q.y && q.x < ((b.x - a.x) * (q.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}

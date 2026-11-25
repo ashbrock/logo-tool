@@ -32,6 +32,12 @@ function validArcs(cs: readonly Contour[]): string | null {
       if (len(sub(s.to, from)) < 1e-9) return 'arc ends coincide';
       if (Math.abs(len(sub(from, s.centre)) - s.r) > 1e-9 || Math.abs(len(sub(s.to, s.centre)) - s.r) > 1e-9) return 'arc end off circle';
       if (len(sub(s.to, from)) > 2 * s.r * (1 + 1e-9)) return 'chord > diameter';
+      {
+        // The sweep must agree with the endpoints: rotating the start by the sweep lands on the end.
+        const a0 = Math.atan2(from.y - s.centre.y, from.x - s.centre.x) + s.sweep;
+        const land = { x: s.centre.x + s.r * Math.cos(a0), y: s.centre.y + s.r * Math.sin(a0) };
+        if (len(sub(land, s.to)) > 1e-9 * Math.max(1, s.r)) return `arc ${typeof i === 'number' ? i : ''}: sweep disagrees with endpoints`;
+      }
     }
   }
   return null;
