@@ -1,0 +1,47 @@
+/* App layout and controls. Every value comes from tokens.css (DESIGN.md). */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--color-bg); color: var(--color-text); }
+body { font-family: var(--font-mono); font-size: var(--type-body-size); line-height: var(--type-body-lh); }
+#app { height: 100%; }
+.app { display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); height: 100vh; overflow: hidden; }
+
+.rail { max-height: 100vh; background: var(--color-surface); border-right: var(--border-width) solid var(--color-border); overflow-y: auto; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); }
+.rail-head { display: flex; flex-direction: column; gap: var(--space-1); }
+.mark-name { font-family: var(--font-serif); font-style: italic; font-size: var(--type-title-size); line-height: var(--type-title-lh); color: var(--color-text); background: transparent; border: var(--border-width) solid transparent; border-radius: var(--radius-control); padding: 0 var(--space-0-5); min-height: var(--control-height); width: 100%; }
+.mark-name:hover { border-color: var(--color-border-control); }
+.group { display: flex; flex-direction: column; gap: var(--space-1); border-top: var(--border-width) solid var(--color-border); padding-top: var(--space-2); }
+.label { margin: 0; font-size: var(--type-label-size); line-height: var(--type-label-lh); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
+.value { margin: 0; font-variant-numeric: tabular-nums; }
+.note { margin: 0; color: var(--color-text-muted); font-size: var(--type-micro-size); line-height: var(--type-micro-lh); }
+.note.warn { color: var(--color-warning); }
+.note.bad { color: var(--color-danger); }
+.row { display: flex; gap: var(--space-1); align-items: center; }
+.radius .value { flex: 1; text-align: center; }
+
+button, select, input { font: inherit; color: inherit; }
+.btn, .seg button, select {
+  min-height: var(--control-height); min-width: var(--control-height);
+  border: var(--border-width) solid var(--color-border-control); border-radius: var(--radius-control);
+  background: transparent; color: var(--color-text); padding: 0 var(--space-1); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease);
+}
+select { background: var(--color-bg); }
+.btn:hover:not(:disabled), .seg button:hover:not([aria-pressed="true"]), select:hover { background: var(--color-surface-raised); }
+.btn:active:not(:disabled), .seg button:active { background: var(--color-surface-raised); box-shadow: inset 0 -1px 0 var(--color-accent); }
+.btn:disabled { color: var(--color-text-disabled); border-color: var(--color-border); cursor: not-allowed; }
+.btn[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
+:focus-visible { outline: var(--focus-width) solid var(--color-accent); outline-offset: 2px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.seg button { border-radius: 0; margin-left: calc(-1 * var(--border-width)); }
+.seg button:first-child { margin-left: 0; border-radius: var(--radius-control) 0 0 var(--radius-control); }
+.seg button:last-child { border-radius: 0 var(--radius-control) var(--radius-control) 0; }
+.seg button[aria-pressed="true"] { color: var(--color-accent); font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent); position: relative; }
+kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: var(--color-text-muted); }
+.field { display: flex; flex-direction: column; gap: var(--space-0-5); font-size: var(--type-micro-size); color: var(--color-text-muted); flex: 1; }
+
+.stage { display: grid; grid-template-rows: minmax(0, 1fr) var(--hint-height); min-width: 0; min-height: 0; height: 100vh; }
+.canvas-wrap { min-height: 0; padding: var(--space-2); overflow: hidden; position: relative; }
+.canvas { position: absolute; inset: var(--space-2); width: calc(100% - 2 * var(--space-2)); height: calc(100% - 2 * var(--space-2)); display: block; touch-action: none; user-select: none; }
+.canvas.mode-place { cursor: crosshair; }
+.hint { margin: 0; padding: 0 var(--space-2); display: flex; align-items: center; border-top: var(--border-width) solid var(--color-border); color: var(--color-text-muted); font-size: var(--type-micro-size); line-height: var(--type-micro-lh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint.error { color: var(--color-danger); }

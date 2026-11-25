@@ -53,9 +53,19 @@ function fillWithArcs(doc: LogoDocument, s: Shape, pts: Vec2[]): Contour {
   return { start: pts[0]!, segs };
 }
 
-export function resolveShapes(doc: LogoDocument): { shapes: PlaneShape[]; issues: ShapeIssue[] } {
+/** What the canvas draws as construction for a shape: its radius circles, or its points if it is invalid. */
+export interface ShapeConstruction {
+  readonly shapeId: string;
+  readonly circles: readonly ({ centre: Vec2; r: number; kind: string } | null)[];
+  readonly invalid: boolean;
+  /** The shape's own outline contours (before merge, cut and intersect), for dashed construction. */
+  readonly contours: readonly Contour[];
+}
+
+export function resolveShapes(doc: LogoDocument): { shapes: PlaneShape[]; issues: ShapeIssue[]; construction: ShapeConstruction[] } {
   const shapes: PlaneShape[] = [];
   const issues: ShapeIssue[] = [];
+  const construction: ShapeConstruction[] = [];
   for (const s of doc.shapes) {
     const vs = s.path.vertices;
     const pts = vs.map((v) => toPlane(v.at, doc.grid));
@@ -70,6 +80,7 @@ export function resolveShapes(doc: LogoDocument): { shapes: PlaneShape[]; issues
         const res = outlineClosed(pts, vs.map((v) => ({ type: v.corner, r: radiusCells(doc, v) })));
         for (const issue of res.issues) issues.push({ shapeId: s.id, kind: 'corner', issue });
         if (res.contour) contours = [res.contour];
+        construction.push({ shapeId: s.id, circles: res.circles, invalid: !res.contour, contours });
       }
     } else {
       if (vs.length < 2) continue;
@@ -83,13 +94,14 @@ export function resolveShapes(doc: LogoDocument): { shapes: PlaneShape[]; issues
       for (const issue of res.issues) issues.push({ shapeId: s.id, kind: 'stroke', issue });
       contours = [...res.contours];
     }
+    if (!construction.some((c) => c.shapeId === s.id)) construction.push({ shapeId: s.id, circles: [], invalid: contours.length === 0, contours });
     if (contours.length === 0) continue;
     shapes.push({ id: s.id, role: s.role, contours, repeat: planeRepeat(doc, s), jointRadius: s.jointRadius / LEN });
   }
-  return { shapes, issues };
+  return { shapes, issues, construction };
 }
 
-export function evaluateDocument(doc: LogoDocument, engine: BooleanEngine): { mark: Mark; issues: ShapeIssue[] } {
-  const { shapes, issues } = resolveShapes(doc);
-  return { mark: evaluateMark(shapes, engine), issues };
+export function evaluateDocument(doc: LogoDocument, engine: BooleanEngine): { mark: Mark; issues: ShapeIssue[]; construction: ShapeConstruction[] } {
+  const { shapes, issues, construction } = resolveShapes(doc);
+  return { mark: evaluateMark(shapes, engine), issues, construction };
 }
