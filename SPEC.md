@@ -104,7 +104,7 @@ All grids are data definitions (see `ARCHITECTURE.md` §3). Defaults are in brac
 | **Typographic** | 12 × 8 cells, subdivision [2], named rows measured from the top on an 8-cell em [ascender 0, cap height 0.5, x-height 2, baseline 6, descender 8], i.e. ascender 0.75 em, cap ≈ 0.69 em, x-height 0.5 em, descender 0.25 em | mirror left–right | square, quarter-discs | motion-logo (alt.) |
 
 - Grid **type** is fixed once the document has a point. Size, subdivision, slant, ratio and rotation can change only if every existing point (and arc centre) maps to an exact lattice point under the new parameters. Otherwise the change is refused with a message naming how many points wouldn't map.
-- Subdivision options: 1, 2, 3, 4, 6, 8. Maximum grid: 24 × 24 cells (polar: 24 rings × 96 rays).
+- Subdivision options: 1, 2, 3, 4, 6, 8. Maximum grid: 24 × 24 cells (polar: 24 rings × 360 rays).
 - **Companion square lattice (polar).** An axis-aligned square lattice with the polar grid's unit and centre, for building frames around rays (m-logo-1 and stock "rays in a square" marks). Where a square point falls on a ray, it is the same point as the polar one.
 
 ## 6. User flows
@@ -129,6 +129,7 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 - **Line segments** are the default.
 - **Arc segment:** hold Alt while clicking the next point (Alt+Space with the keyboard). The tool offers only centres that are **lattice points the same distance from both ends**, nearest radius first. Tab cycles the candidates, and the preview shows the circle and the arc. If no candidate exists, the hint line says *"No lattice point is the same distance from both ends. This segment can only be straight."* and the click places a line.
 - **Close as fill:** click the shape's first point, or press C. A closed shape is filled by default.
+- **Circle:** a filled shape with a single point and a radius is a circle centred on that point. Press O in Place mode to start one, then use `[ ]` for its radius.
 - **Finish as stroke:** press Enter with an open path. Open paths are always strokes (default width 0.5 cell, round caps, round joins, end radius 0). Shift+C closes a path as a stroke (a ring).
 - **Stroke corners and ends.** On a stroke, a point's radius rounds the **centre line**, giving concentric inner and outer arcs. The **end radius** (Shape section) softens the corners of butt and square ends.
 - Any shape can switch between fill and stroke with S. Switching an open path to fill closes it.
@@ -170,11 +171,18 @@ At radius 0 all four types give a sharp corner exactly on the point.
 2. Click to place the tile as a new shape (normal points and segments, fully editable later). Space cycles tile shapes, R rotates the tile, Shift+click places and keeps the same tile for the next click, and Alt+click deletes the tile-made shape under the pointer.
 3. The tiles available depend on the grid (§5).
 
-### 6.9 Symmetry
-- In the rail Symmetry section (Y cycles through the options), choose off, a mirror axis, or n-fold rotation from the grid's native group. The axes or centre show on the canvas.
-- Symmetry is **live**: the user edits source shapes, and copies are generated. Copies show the mark normally, but their points are not selectable. Clicking a copy selects its source.
-- **Detach** turns the copies into ordinary shapes.
-- One-off transforms (Shift+H mirror horizontally, Shift+V mirror vertically, E / Shift+E rotate by the grid step) apply to the selected shapes. They're only offered when the result stays on the lattice.
+### 6.9 Repeat (per shape)
+- Each shape has its own **repeat**, set in the Shape section (Y cycles through common options):
+  - **off**
+  - **rotate ×n** about a centre lattice point, for any n from 2 to 360, optionally also mirrored
+  - **mirror** in a line through a lattice point
+  - **along a line ×n** by a lattice step
+
+  The centre, axis or step shows on the canvas while the shape is selected.
+- Repeats are **live**: you edit the source shape, and the copies are derived from it exactly each time. Copies aren't stored points, so they don't have to land on lattice points. An 8-fold repeat on a square grid is allowed. Copies at angles the grid doesn't share export with 3-decimal coordinates.
+- Copies take part in merge, cut and intersect exactly like their source, in the source's place in the evaluation order. Their points can't be selected, and clicking a copy selects its source.
+- **Detach** turns copies into ordinary shapes. It's only offered when every copy's points land on lattice points (for example a 4-fold repeat on a square grid). Otherwise it's disabled, and its tooltip says why.
+- One-off transforms (Shift+H mirror horizontally, Shift+V mirror vertically, E / Shift+E rotate by the grid step) apply to the selected shapes. They're only offered when the result stays on the lattice, because they change stored points.
 
 ### 6.10 Export
 1. Press Cmd+E or choose **Export…**. The dialog opens with the last-used settings (§4.3).
@@ -235,7 +243,7 @@ Cmd means Ctrl on Windows and Linux. All shortcuts are listed in a sheet opened 
 | Cmd+Shift+C | Copy SVG |
 | `\` | Paper preview (mark in export colour on white) |
 | G / Shift+G | Grid lines / construction circles on or off |
-| Y | Cycle symmetry |
+| Y | Cycle the selected shape's repeat |
 | Cmd+= / Cmd+− / Cmd+0 | Zoom in / out / fit grid |
 | Space+drag, or scroll | Pan |
 | Esc | Cancel the current action, then clear the selection |
@@ -343,9 +351,10 @@ A shape is **invalid** if it has no area as a fill, or if any corner has no vali
 - Changing grid parameters that would move any point off the lattice is refused (§5). The message gives the number of points affected.
 - In a polar grid, all points at ring 0 are the same point (the centre). They're stored in one canonical form, so "ray 3 at ring 0" equals "ray 0 at ring 0".
 
-### 9.9 Symmetry
+### 9.9 Repeats
 - Copies that overlap their source are merged as part of the mark, so there's no doubled outline in the export.
 - A shape lying on a mirror axis is mirrored onto itself, and the result is merged.
+- Shapes that touch at a single point after merge or cut (for example a thunderbolt cut whose tips touch the block's edges) export as separate pieces. There are no zero-width connections or slivers.
 
 ### 9.10 Empty and degenerate documents
 - No shapes: Export and Copy SVG are disabled with the reason *"Nothing to export yet."*

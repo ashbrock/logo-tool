@@ -94,6 +94,7 @@ interface Shape {
   path: Path;
   paint: Paint;
   role: 'add' | 'cut' | 'intersect';
+  repeat: Repeat;
   jointRadius: Len240;                   // fillets corners created where this shape meets the result so far
 }
 
@@ -106,10 +107,12 @@ type GridDef =                           // src/grids/types.ts is the source of 
 // width/height are whole cells. The extent is the rectangle [0, width] × [0, height] (polar: [0, 2·rings]²
 // with the centre at (rings, rings)); lattice points are every (u, v) whose position lies inside it.
 
-type Symmetry =
+/** Per-shape repeat. Copies are derived geometry, so they need not land on lattice points. */
+type Repeat =
   | { kind: 'none' }
-  | { kind: 'mirror'; axis: string }      // axis id from the grid's symmetry group
-  | { kind: 'rotate'; order: Int };       // must divide the grid's native order
+  | { kind: 'rotate'; centre: Lattice; count: Int /* 2…360 */; mirrored: boolean; axis?: Lattice /* a point on the mirror line */ }
+  | { kind: 'mirror'; through: Lattice; to: Lattice }        // the mirror line through two lattice points
+  | { kind: 'translate'; step: Lattice /* a lattice vector */; count: Int };
 
 interface LogoDocument {
   schema: 1;
@@ -118,7 +121,6 @@ interface LogoDocument {
   grid: GridDef;
   shapes: Shape[];                       // evaluation order = array order
   radii: { id: string; name: string; value: Len240 }[];
-  symmetry: Symmetry;
   export: { colour: string; paddingCells: number; overlay: 'off' | 'dark' | 'light';
             pngSize: 512 | 1024 | 2048 | 4096; pngBackground: 'transparent' | 'white' | 'overlay';
             unitsPerCell: Int };
@@ -130,7 +132,7 @@ interface LogoDocument {
 2. For every arc, `dist²(centre, start) === dist²(centre, end)`, computed exactly in lattice integers using the grid kind's exact metric (§4.1).
 3. No two consecutive vertices are equal. A closed fill has at least 3 distinct vertices.
 4. Every `{ ref }` names an existing radius.
-5. `symmetry` is in the grid's native group.
+5. A shape with one vertex is a filled circle with radius > 0. A repeat's centre, axis points and step are lattice values.
 
 The document is plain JSON, frozen in development builds (`Object.freeze`, deep) to catch mutation.
 
@@ -214,9 +216,9 @@ A stroke is a centre line of line and arc segments, with a width w, a cap, a joi
 
 Closed-form checks in `tests/geometry.strokes.test.ts`: rectangle w·L, round caps w·L + π(w/2)², square caps (L + w)·w, miter, round and bevel at a right angle, concentric corner arcs w·(legs + πr/2), half annulus w·πR, rings, and end radius w·L − 4(1 − π/4)e².
 
-### 4.5 Symmetry
+### 4.5 Repeats (`src/geometry/repeat.ts`)
 
-`expandSymmetry(shapes, symmetry, grid)` applies the grid's exact `SymmetryOp`s to **lattice coordinates** (not plane points). Copies are therefore exact lattice shapes. Copies inherit the role and paint, and are tagged with their source id for selection.
+`expandRepeat(contours, repeat)` applies exact plane transforms to a shape's **outline contours**: rotation about the centre, reflection in a line, or translation. Lines map to lines, and arcs map to arcs (centres move, radii stay, and the sweep sign flips under a reflection). Copies are derived, so the lattice invariant, which is about stored points, isn't affected. Copies inherit the role and paint, are tagged with their source id for selection, and enter the boolean fold together with their source. **Detach** is only offered when the grid's own `SymmetryOp`s can reproduce the copies on lattice points.
 
 ## 5. Pipeline (`src/pipeline/`)
 
@@ -255,7 +257,7 @@ Paper.js approximates arcs with cubics of at most 90°: *"Calculate amount of se
 ### 5.2 Arc recovery
 
 Every source arc's (centre, r) is known. For each cubic in the boolean result:
-1. Check it against the source circles touching its endpoints. It belongs to a circle if both endpoints, the curve's midpoint and the ¼ and ¾ points lie within ε = 1e-6 cells of that circle's radius.
+1. Match it to a source circle. Its endpoints must lie on the circle within 1e-6 cells: Paper.js computes those exactly as intersections or as the original segment ends. Its ¼, ½ and ¾ points must lie within 1e-3·r of the circle. Paper.js's arc cubics sit up to about 0.027% of r off the true circle (measured in the Paper.js test), so a tight interior tolerance would reject real arcs. When several circles match, the closest wins.
 2. Merge consecutive cubics on the same circle into one `A` segment (splitting at 180° so `large` stays meaningful).
 3. Cubics whose control points are collinear with their endpoints become `L`.
 4. Anything left unmatched is a **pipeline error**: it fails loudly in development and is reported as an issue in production. It's never exported as a cubic, because the model can't create one.

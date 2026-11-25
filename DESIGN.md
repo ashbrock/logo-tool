@@ -141,7 +141,7 @@ Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are wri
 | Cut / intersect outline | 1.25 px dashed 6 4 | `--canvas-cut` |
 | Selected shape outline | 1.5 px solid | `--canvas-selection` |
 | Box-select | 1 px dashed 3 3, fill `--canvas-selection` at 6% | |
-| Symmetry axis | 1 px dash-dot 8 3 1 3 | `--canvas-axis` |
+| Repeat centre or axis | 1 px dash-dot 8 3 1 3 | `--canvas-axis` |
 
 ## 5. Layout
 
@@ -205,7 +205,8 @@ The overlay sits **behind** the mark in exported SVG and PNG. It's included only
 | Lattice crosses | yes | `--canvas-lattice` | `--paper-lattice` |
 | Radius, fillet and arc-centre circles | yes, for every point with r > 0 and every arc | `--canvas-radius` | `--paper-radius` |
 | Cut / intersect outlines | yes, dashed | `--canvas-cut` | `--paper-radius` |
-| Symmetry axes | yes, if symmetry is on | `--canvas-axis` | `--paper-lattice` |
+| Repeat centres and axes | yes, for shapes with a repeat | `--canvas-axis` | `--paper-lattice` |
+| Edge guides | optional (off by default): every straight edge of the mark extended across the frame, 1 px | `--canvas-grid-major` | `--paper-grid-major` |
 | Ruler | no | — | — |
 | Point markers, numbers, selection | no | — | — |
 | Mark | yes, on top | `--canvas-mark` | export colour (default `--ink-default`) |
