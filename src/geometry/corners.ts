@@ -76,6 +76,18 @@ function signedArea(pts: readonly Vec2[]): number {
 export function outlineClosed(points: readonly Vec2[], corners: readonly CornerSpec[]): OutlineResult {
   const n = points.length;
   const empty = (issue: CornerIssue): OutlineResult => ({ contour: null, issues: [issue], edges: [], circles: [], corners: [] });
+  if (n === 1) {
+    // A single point with a radius is a circle centred on it (SPEC.md §6.3). It is written as two
+    // half-circle arcs, because an arc whose end equals its start is omitted (SVG 2, Paths,
+    // out-of-range elliptical arc parameters).
+    const c = points[0] as Vec2, r = (corners[0] as CornerSpec).r;
+    if (!(r > 0)) return empty({ kind: 'degenerate', reason: 'too-few-points' });
+    const a = { x: c.x + r, y: c.y }, b = { x: c.x - r, y: c.y };
+    return {
+      contour: { start: a, segs: [{ kind: 'A', to: b, centre: c, r, sweep: Math.PI }, { kind: 'A', to: a, centre: c, r, sweep: Math.PI }] },
+      issues: [], edges: [], circles: [{ centre: c, r, kind: 'outer' }], corners: [],
+    };
+  }
   if (n < 2) return empty({ kind: 'degenerate', reason: 'too-few-points' });
   for (let i = 0; i < n; i++) {
     if (len(sub(points[(i + 1) % n] as Vec2, points[i] as Vec2)) < EPS) return empty({ kind: 'degenerate', reason: 'coincident-points' });
