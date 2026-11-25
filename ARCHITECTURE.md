@@ -87,7 +87,7 @@ interface Path {
 
 type Paint =
   | { kind: 'fill' }
-  | { kind: 'stroke'; width: Len240; cap: 'butt' | 'round' | 'square'; join: 'miter' | 'round' | 'bevel' };
+  | { kind: 'stroke'; width: Len240; cap: 'butt' | 'round' | 'square'; join: 'miter' | 'round' | 'bevel'; endRadius: Len240 };
 
 interface Shape {
   id: string;
@@ -194,15 +194,25 @@ For each closed path, with points Pᵢ and radii rᵢ:
 5. **Hairpins and limits.** A fillet at a 180° reversal has no width, so it stays sharp and is reported as clamped to 0. A wrap circle's reported limit is exclusive: at the limit the edge has zero length. When a big circle swallows a small neighbour on the same side, only the big one is reported, because the small one isn't at fault.
 6. The output is a `Contour` of `L` and `A` segments. **It never contains an arc with r = 0 or endpoints that are equal.** SVG would silently treat those as a line or omit them: *"If either rx or ry is 0, then this arc is treated as a straight line segment"* and *"If the endpoint (x, y) of the segment is identical to the current point … this is equivalent to omitting the elliptical arc segment entirely"* (SVG 2, Paths, *Out-of-range elliptical arc parameters*). It also never contains an arc whose radius is too small to reach its endpoints, which SVG would *"scale up uniformly until there is exactly one solution"* (same section). A property test (`VERIFICATION.md` §2, P4) checks all three.
 
-### 4.4 Strokes
+### 4.4 Strokes (`src/geometry/strokes.ts`)
 
-A stroke's outline is built from its path with all corners treated as sharp centre-line vertices (corner settings apply to fills only), then offset by ±w/2:
-- **Line segments** offset to parallel lines.
-- **Arc segments** offset to concentric arcs with r ± w/2, which are exact circular arcs. If the inner r − w/2 ≤ 0, the offset is clamped to the centre and the shape is flagged (`SPEC.md` §9.7).
-- **Joins:** miter (a line intersection, falling back to bevel past a miter limit of 4), bevel (a line), or round (an arc of radius w/2 centred on the vertex).
-- **Caps:** butt, square (extended by w/2), or round (a half-circle).
+A stroke is a centre line of line and arc segments, with a width w, a cap, a join and an end radius.
+1. **Rounded centre-line corners.** Where two straight segments meet, a point with radius r > 0 gets a fillet on the **centre line**, clamped per segment like fill fillets. Every corner type does this on a stroke, because wraps, coves and filled corners are for fills. Offsetting the fillet gives concentric arcs of radius r − w/2 and r + w/2 (the isometric asterisk).
+2. **Offsets.** A line offsets to a parallel line. An arc of radius R offsets to a concentric arc of radius R ± w/2, so it stays exact. If R − w/2 ≤ 0, the stroke is flagged as too wide, with its widest allowed width, and isn't drawn inside-out (`SPEC.md` §9.7).
+3. **Joins** at sharp centre-line corners, on the outer side:
+   - miter: SVG's miter length / width = 1/sin(φ/2), limit 4, falling back to bevel
+   - round: an arc of radius w/2 centred on the corner
+   - bevel
 
-The result is one closed contour per stroke, or two for a closed stroke: outer, plus inner reversed. It can self-overlap at tight joins. The boolean pass resolves that.
+   On the inner side, two straight offsets are trimmed to their crossing. Anything else passes through the corner point, and the overlap is resolved by the boolean pass.
+4. **Caps:** butt, square (extended by w/2) or round (a half circle). **End radius** e fillets the two corners of butt and square caps, clamped to w/2 and, for butt, to half the end segment. Closed strokes produce two contours: the outer, and the inner reversed.
+
+**Current limits** (each reported as an issue, never silently approximated):
+- Centre-line fillets only form between two straight segments. Corners touching an arc segment are joined, not rounded.
+- End radius needs a straight end segment (`end-radius-on-arc`).
+- Overlaps at non-straight inner joins wait for the boolean pass.
+
+Closed-form checks in `tests/geometry.strokes.test.ts`: rectangle w·L, round caps w·L + π(w/2)², square caps (L + w)·w, miter, round and bevel at a right angle, concentric corner arcs w·(legs + πr/2), half annulus w·πR, rings, and end radius w·L − 4(1 − π/4)e².
 
 ### 4.5 Symmetry
 

@@ -8,6 +8,7 @@ import { outlineClosed, type CornerSpec, type CornerType, type OutlineResult } f
 import { lattice, type Lattice } from '../src/geometry/lattice';
 import { add, scale, sub as vsub, type Vec2 } from '../src/geometry/num';
 import { writePath, fmt } from '../src/export/write-path';
+import { outlineStroke, type StrokeInput } from '../src/geometry/strokes';
 import { defaultGrid, toPlane, type GridDef } from '../src/grids';
 
 const PX_PER_CELL = 56;
@@ -211,6 +212,103 @@ function renderSpecimen(spec: Specimen): string {
 </figure>`;
 }
 
+// ---- Strokes -------------------------------------------------------------------------------------
+
+interface StrokeSpecimen {
+  name: string;
+  note: string;
+  cells: { w: number; h: number };
+  strokes: StrokeInput[];
+  expectedArea?: number;
+}
+
+const ln = { kind: 'line' as const };
+const st = (pts: [number, number][], over: Partial<StrokeInput>): StrokeInput => ({
+  points: pts.map(([x, y]) => ({ x, y })), segments: pts.slice(0, over.closed ? pts.length : -1).map(() => ln), closed: false,
+  radii: pts.map(() => 0), width: 0.5, cap: 'butt', join: 'miter', endRadius: 0, ...over,
+});
+
+const STROKE_SPECIMENS: StrokeSpecimen[] = [
+  {
+    name: 'Caps', note: 'butt, square and round ends on a 0.6-wide stroke', cells: { w: 4, h: 4 },
+    strokes: [st([[1, 1], [3, 1]], { width: 0.6, cap: 'butt' }), st([[1, 2], [3, 2]], { width: 0.6, cap: 'square' }), st([[1, 3], [3, 3]], { width: 0.6, cap: 'round' })],
+    expectedArea: 0.6 * 2 + 0.6 * 2.6 + (0.6 * 2 + Math.PI * 0.09),
+  },
+  {
+    name: 'Joins', note: 'miter, round and bevel at the same 53° corner (2·atan ½)', cells: { w: 4, h: 4 },
+    strokes: [
+      st([[0.5, 1.5], [1, 0.5], [1.5, 1.5]], { join: 'miter', width: 0.3 }),
+      st([[1.5, 3], [2, 2], [2.5, 3]], { join: 'round', width: 0.3 }),
+      st([[2.5, 1.5], [3, 0.5], [3.5, 1.5]], { join: 'bevel', width: 0.3 }),
+    ],
+  },
+  {
+    name: 'Rounded stroke corner', note: 'centre-line radius 1: inner 0.75 and outer 1.25 around one centre (the isometric asterisk)', cells: { w: 4, h: 4 },
+    strokes: [st([[0.5, 0.5], [3.5, 0.5], [3.5, 3.5]], { radii: [0, 1, 0] })],
+    expectedArea: 0.5 * (2 + Math.PI / 2 + 2),
+  },
+  {
+    name: 'End radius', note: 'butt and square ends softened by 0.25 on a 1-wide stroke', cells: { w: 4, h: 4 },
+    strokes: [st([[1, 1.25], [3, 1.25]], { width: 1, endRadius: 0.25 }), st([[1.5, 3], [2.5, 3]], { width: 1, cap: 'square', endRadius: 0.25 })],
+    expectedArea: (2 - 4 * (1 - Math.PI / 4) * 0.0625) + (2 - 4 * (1 - Math.PI / 4) * 0.0625),
+  },
+  {
+    name: 'Arch', note: 'line, arc segment centred on a lattice point, line: round caps (m-logo-2)', cells: { w: 4, h: 4 },
+    strokes: [{
+      points: [{ x: 1, y: 3.5 }, { x: 1, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3.5 }],
+      segments: [ln, { kind: 'arc', centre: { x: 2, y: 2 }, sweep: 1 }, ln], closed: false,
+      radii: [0, 0, 0, 0], width: 0.5, cap: 'round', join: 'round', endRadius: 0,
+    }],
+    expectedArea: 0.5 * (1.5 + Math.PI + 1.5) + Math.PI * 0.0625,
+  },
+  {
+    name: 'Rounded ring', note: 'a closed stroke with centre-line radius 0.75 at every corner', cells: { w: 4, h: 4 },
+    strokes: [st([[0.5, 0.5], [3.5, 0.5], [3.5, 3.5], [0.5, 3.5]], { closed: true, radii: [0.75, 0.75, 0.75, 0.75] })],
+    expectedArea: 0.5 * (4 * 1.5 + 2 * Math.PI * 0.75),
+  },
+];
+
+function renderStrokeSpecimen(spec: StrokeSpecimen): string {
+  const m = 0.5;
+  const vb = `${-m} ${-m} ${spec.cells.w + 2 * m} ${spec.cells.h + 2 * m}`;
+  const w = (spec.cells.w + 2 * m) * PX_PER_CELL, h = (spec.cells.h + 2 * m) * PX_PER_CELL;
+  const results = spec.strokes.map((s) => outlineStroke(s));
+  const contours = results.flatMap((r) => r.contours);
+  // Centre lines as construction (dashed), drawn from the inputs.
+  const centre = spec.strokes.map((s) => {
+    let d = `M${s.points[0]!.x} ${s.points[0]!.y}`;
+    const count = s.closed ? s.points.length : s.points.length - 1;
+    for (let k = 0; k < count; k++) {
+      const to = s.points[(k + 1) % s.points.length]!;
+      const seg = s.segments[k]!;
+      if (seg.kind === 'arc') { const r = Math.hypot(to.x - seg.centre.x, to.y - seg.centre.y); d += `A${r} ${r} 0 0 ${seg.sweep} ${to.x} ${to.y}`; }
+      else d += `L${to.x} ${to.y}`;
+    }
+    if (s.closed) d += 'Z';
+    return `<path d="${d}" fill="none" stroke="var(--canvas-radius)" stroke-width="1" stroke-dasharray="2 3" ${ve}/>`;
+  }).join('');
+  const area = contours.reduce((a, c) => a + contourArea(c), 0);
+  const arcs = contours.reduce((a, c) => a + c.segs.filter((s) => s.kind === 'A').length, 0);
+  const lines: string[] = [`area ${fmt(Math.abs(area), 4)}${spec.expectedArea !== undefined ? ` · expected ${fmt(spec.expectedArea, 4)} ${Math.abs(Math.abs(area) - spec.expectedArea) < 1e-9 ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}` : ''} · ${arcs} arcs`];
+  for (const r of results) for (const i of r.issues) lines.push(`<span class="warn">${i.kind}</span>`);
+  const pts = spec.strokes.flatMap((s) => s.points);
+  return `<figure class="spec">
+  <svg viewBox="${vb}" width="${w}" height="${h}" role="img" aria-label="${spec.name}">
+    <rect x="${-m}" y="${-m}" width="${spec.cells.w + 2 * m}" height="${spec.cells.h + 2 * m}" fill="var(--canvas-bg)"/>
+    ${gridLayer(spec.cells)}
+    <path d="${writePath(contours, { scale: 1, precision: 4 })}" fill="var(--canvas-mark)"/>
+    ${centre}
+    ${pointsLayer(pts, new Set())}
+  </svg>
+  <figcaption>
+    <h2>${spec.name}</h2>
+    <p class="note">${spec.note}</p>
+    ${lines.map((l) => `<p class="data">${l}</p>`).join('')}
+    <details><summary>Path data (100 units per cell)</summary><code>${writePath(contours, { scale: 100, precision: 3 })}</code></details>
+  </figcaption>
+</figure>`;
+}
+
 export function renderGalleryHtml(tokensCss: string, meta: { commit: string }): string {
   return `<title>Geometry Gallery</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -240,6 +338,8 @@ details { font-size: var(--type-micro-size); line-height: var(--type-micro-lh); 
 summary { cursor: pointer; min-height: 24px; display: flex; align-items: center; }
 summary:focus-visible { outline: var(--focus-width) solid var(--color-accent); outline-offset: 2px; }
 code { display: block; overflow-wrap: anywhere; color: var(--color-text); padding-top: var(--space-0-5); }
+.section { margin: var(--space-3) 0 0; font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: var(--type-title-size); line-height: var(--type-title-lh); }
+.intro { margin: 0; color: var(--color-text-muted); max-width: 72ch; }
 footer { color: var(--color-text-muted); font-size: var(--type-micro-size); border-top: var(--border-width) solid var(--color-border); padding-top: var(--space-2); }
 </style>
 <main>
@@ -248,8 +348,14 @@ footer { color: var(--color-text-muted); font-size: var(--type-micro-size); bord
     <p>Real output of the corner geometry, drawn with the Drafting film canvas styles. Every point is a lattice point on a square grid with half-cell steps, every outline is lines and exact circular arcs, and the path data is what the export writer produces. Areas are checked against closed-form answers where one exists.</p>
     <div class="legend"><span><i></i>outer or fillet circle (dot = fillet centre)</span><span><i class="dash"></i>inward or cove circle</span><span><i class="clamp"></i>clamped fillet</span><span><i class="bad"></i>invalid</span></div>
   </header>
+  <h2 class="section">Fills and corners</h2>
   <section class="sheet">
 ${SPECIMENS.map(renderSpecimen).join('\n')}
+  </section>
+  <h2 class="section">Strokes</h2>
+  <p class="intro">Strokes are outlined exactly: lines offset to parallel lines, arcs to arcs around the same centre. The dashed line is the centre line. A stroke with no overlaps has area = width × centre-line length, plus its caps.</p>
+  <section class="sheet">
+${STROKE_SPECIMENS.map(renderStrokeSpecimen).join('\n')}
   </section>
   <footer>Built from commit ${meta.commit}. IBM Plex isn't bundled yet, so the type uses its fallback stack.</footer>
 </main>`;

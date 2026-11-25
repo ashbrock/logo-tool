@@ -129,7 +129,8 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 - **Line segments** are the default.
 - **Arc segment:** hold Alt while clicking the next point (Alt+Space with the keyboard). The tool offers only centres that are **lattice points the same distance from both ends**, nearest radius first. Tab cycles the candidates, and the preview shows the circle and the arc. If no candidate exists, the hint line says *"No lattice point is the same distance from both ends. This segment can only be straight."* and the click places a line.
 - **Close as fill:** click the shape's first point, or press C. A closed shape is filled by default.
-- **Finish as stroke:** press Enter with an open path. Open paths are always strokes (default width 0.5 cell, round caps, round joins). Shift+C closes a path as a stroke (a ring).
+- **Finish as stroke:** press Enter with an open path. Open paths are always strokes (default width 0.5 cell, round caps, round joins, end radius 0). Shift+C closes a path as a stroke (a ring).
+- **Stroke corners and ends.** On a stroke, a point's radius rounds the **centre line**, giving concentric inner and outer arcs. The **end radius** (Shape section) softens the corners of butt and square ends.
 - Any shape can switch between fill and stroke with S. Switching an open path to fill closes it.
 
 ### 6.4 Adjust a point
