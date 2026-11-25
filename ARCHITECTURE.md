@@ -56,76 +56,20 @@ ui ──► render ──► pipeline ──► geometry ◄── grids
 
 The document holds **only the source of truth**. Everything drawn (outlines, booleans, symmetry copies) is derived, never stored.
 
+The source of truth is `src/model/types.ts`. In summary:
+
 ```ts
-type Int = number;                       // always an integer; checked by assertInt() at boundaries
-
-/** A lattice point in sub-step units of the document's grid. (27, 8) with subdivision 8 = (3⅜, 1).
- *  On polar grids, layer 'square' marks a companion square point: (u, v) = offset from the centre. */
-interface Lattice { u: Int; v: Int; layer?: 'square' }
-
-/** Lengths (radius, stroke width) in 1/240 of a cell. 240 is divisible by every allowed subdivision. */
-type Len240 = Int;
-
-type CornerType = 'auto' | 'outer' | 'round' | 'inward';
-
-interface Vertex {
-  id: string;                            // "v12"; ids come from doc.nextId, never random
-  at: Lattice;
-  corner: CornerType;
-  radius: Len240 | { ref: string };      // a literal, or a named radius
-}
-
-type Segment =
-  | { kind: 'line' }
-  | { kind: 'arc'; centre: Lattice; sweep: 0 | 1 };   // sweep as in SVG's sweep-flag
-
-interface Path {
-  vertices: Vertex[];                    // segments[i] joins vertices[i] → vertices[i+1 (mod n if closed)]
-  segments: Segment[];
-  closed: boolean;
-}
-
-type Paint =
-  | { kind: 'fill' }
-  | { kind: 'stroke'; width: Len240; cap: 'butt' | 'round' | 'square'; join: 'miter' | 'round' | 'bevel'; endRadius: Len240 };
-
-interface Shape {
-  id: string;
-  path: Path;
-  paint: Paint;
-  role: 'add' | 'cut' | 'intersect';
-  repeat: Repeat;
-  jointRadius: Len240;                   // fillets corners created where this shape meets the result so far
-}
-
-type GridDef =                           // src/grids/types.ts is the source of truth
-  | { kind: 'affine'; preset: 'square'; subdivision; width; height; slantDeg; rotationDeg }
-  | { kind: 'affine'; preset: 'triangular'; subdivision; width; height; rotationDeg }
-  | { kind: 'affine'; preset: 'isometric'; subdivision; width; height; ratio: 'true30' | '2:3' | '1:2'; rotationDeg }
-  | { kind: 'affine'; preset: 'typographic'; subdivision; width; height; rows: { name; at /* sub-steps from top */ }[] }
-  | { kind: 'polar'; preset: 'polar'; subdivision /* rings */; rings; rays; rotationDeg; companionSquare: boolean };
-// width/height are whole cells. The extent is the rectangle [0, width] × [0, height] (polar: [0, 2·rings]²
-// with the centre at (rings, rings)); lattice points are every (u, v) whose position lies inside it.
-
-/** Per-shape repeat. Copies are derived geometry, so they need not land on lattice points. */
-type Repeat =
-  | { kind: 'none' }
-  | { kind: 'rotate'; centre: Lattice; count: Int /* 2…360 */; mirrored: boolean; axis?: Lattice /* a point on the mirror line */ }
-  | { kind: 'mirror'; through: Lattice; to: Lattice }        // the mirror line through two lattice points
-  | { kind: 'translate'; step: Lattice /* a lattice vector */; count: Int };
-
-interface LogoDocument {
-  schema: 1;
-  name: string;
-  nextId: Int;
-  grid: GridDef;
-  shapes: Shape[];                       // evaluation order = array order
-  radii: { id: string; name: string; value: Len240 }[];
-  export: { colour: string; paddingCells: number; overlay: 'off' | 'dark' | 'light';
-            pngSize: 512 | 1024 | 2048 | 4096; pngBackground: 'transparent' | 'white' | 'overlay';
-            unitsPerCell: Int };
-}
+Lattice   { u: Int; v: Int; layer?: 'square' }            // sub-step units; 'square' = polar companion lattice
+Vertex    { id; at: Lattice; corner: 'auto'|'outer'|'round'|'inward'; radius: Len240 | { ref } }
+Segment   { kind: 'line' } | { kind: 'arc'; centre: Lattice; sweep: 0|1 }
+Path      { vertices; segments; closed }                   // segments[i]: vertices[i] → vertices[i+1]
+Paint     { kind: 'fill' } | { kind: 'stroke'; width: Len240; cap; join; endRadius: Len240 }
+Repeat    none | rotate { centre; count 2–360; mirrored; axis? } | mirror { through; to } | translate { step; count }
+Shape     { id; path; paint; role: 'add'|'cut'|'intersect'; repeat: Repeat; jointRadius: Len240 }
+LogoDocument { schema: 1; name; nextId; grid: GridDef; shapes (evaluation order); radii: NamedRadius[]; export: ExportSettings }
 ```
+Len240 = whole 1/240 cells. A one-point fill with a radius is a circle. Open fills with fewer than 3 points are shapes being placed, and draw nothing yet.
+
 
 **Invariants**, checked by `model/validate.ts` on every command result and on file open:
 1. Every `Lattice` and every arc `centre` is integral and inside `grid.extent`.
