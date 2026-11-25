@@ -159,6 +159,7 @@ At radius 0 all four types give a sharp corner exactly on the point.
 2. Shapes are evaluated in creation order: the mark starts empty, then each shape adds to, cuts from or intersects the result so far. Cmd+[ and Cmd+] move the selected shape earlier or later in that order. There's no list panel (see the non-goals).
 3. Cut shapes draw their outline as a dashed construction line on the canvas, so you can still select and edit them.
 4. All boolean operations are **live**: moving a point of a cut shape updates the mark. Results are never baked in, because intersection points are generally not lattice points.
+5. **Joint radius.** Every shape has a joint radius (default 0). Corners that the boolean operation *creates*, where this shape's outline crosses the result so far, are rounded with fillets of that radius. Corners at the shape's own points keep their per-point settings. Joint fillets are drawn as fillet circles like round corners, and are clamped the same way (§9.4). Set it in the Shape section, or with Alt+`[` and Alt+`]`. This is how rays clipped by a frame get rounded clip corners (m-logo-1).
 
 ### 6.8 Tile mode (cell fill)
 1. Press T. Hovering a cell previews the current tile in it.
@@ -263,6 +264,7 @@ Cmd means Ctrl on Windows and Linux. All shortcuts are listed in a sheet opened 
 | S | Toggle fill / stroke |
 | `,` `.` | Stroke width − / + one sub-step |
 | 1 / 2 / 3 | Role: add / cut / intersect |
+| Alt+`[` `]` | Joint radius − / + one sub-step |
 | Cmd+[ / Cmd+] | Move shape earlier / later in evaluation order |
 | Shift+H / Shift+V | Mirror selected shapes horizontally / vertically |
 | E / Shift+E | Rotate selected shapes by grid step clockwise / anticlockwise |
@@ -317,6 +319,7 @@ A shape is **invalid** if it has no area as a fill, or if any corner has no vali
 
 ### 9.4 Extreme corner radius
 - **Round (fillet):** the tangent length is *t = r / tan(θ/2)*, where θ is the interior angle. The two corners at either end of an edge share its length in proportion to the tangent lengths they ask for. If they'd overlap, both radii are clamped so their tangent lengths sum exactly to the edge length. Clamping is shown (§7.3) and is never an error.
+- **Joint fillets** follow the same clamping as round fillets. A joint between two arcs, or between a line and an arc, uses the circle tangent to both. Where the two outlines meet tangentially there's no corner, so no fillet is made.
 - **Outer / inward / auto:** large radii are allowed as long as tangents exist between neighbouring circles. If one circle contains the neighbouring circle it should wrap to, the corner has no tangent and the shape is invalid. The message is: *"Radius at (3, 1) swallows its neighbour. Reduce it below 1.41."* The limit is computed exactly.
 - **Interaction limit:** the radius control's range is 0 to the grid's largest dimension. Typed values above that are clamped to it.
 
@@ -355,10 +358,9 @@ A shape is **invalid** if it has no area as a fill, or if any corner has no vali
 
 These are decisions for the designer. Until each is answered, the default in brackets applies.
 
-1. **Clipping and rounding at boolean edges (m-logo-1).** m-logo-1's wedges are rays clipped by a rectangle, and the clipped corners are rounded. Those corners aren't lattice points, and the model can only round corners at points. Options:
-   - (a) Leave m-logo-1 out of the v1 rebuild set.
-   - (b) Add a shape-level "round result corners" radius applied after the boolean pass.
-   - (c) Add snap points where construction lines intersect.
+Resolved:
+- **Rounding at boolean edges:** answered by adding a joint radius (§6.7 step 5).
+- **Named radii:** belong to the document. There are no cross-document presets.
 
-   [Default: (a) for v1, with (b) as the next candidate.]
-2. **Named radii scope.** Are named radii per document only, or reusable presets across documents? [Default: per document.]
+Open:
+1. **A square frame on the polar grid (m-logo-1).** m-logo-1's clip rectangle has corners that aren't polar lattice points, so the joint radius alone can't rebuild it. Proposal: the polar grid also offers a **companion square lattice** with the same unit and centre, so frames and rays can be built together. Several stock marks (rays clipped to a square) need the same thing. [Default until answered: m-logo-1 stays a stretch target.]

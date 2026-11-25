@@ -51,12 +51,12 @@ Original node counts were measured on the files in `/references` (Z excluded).
 | node-logo | triangular, rotation 15° | outer and inward wraps, cutout | 111 | 111 | 1.5% |
 | motion-logo | square 23 × 6 (8) | wraps r = 0.5, flat ends, 0.375 spacing, cutouts | 119 | 119 | 1.0% |
 | m-logo-2 | square (2) | strokes with arc segments, round caps | 97 | 97 | 1.0% |
-| m-logo-1 | polar 24 rays | rays clipped to a rectangle, rounded clip corners | 50 | 50 | **stretch** |
+| m-logo-1 | polar 24 rays | rays clipped to a rectangle, joint radius at clip corners | 50 | 50 | **stretch** |
 
 - \* e-logo-2's original has nodes about 0.028 off its lattice. The rebuild puts them on the lattice, which is an intentional deviation within the threshold.
 - † p-logo-7's two slopes (31.36° and 32.64°) are unified in the rebuild. This deviation is recorded in `DECISIONS.md`, which justifies the 3.0% threshold.
 - **p-logo-3's limit is 60 nodes, not 191,** because the original's 146 tiny curve segments are a defect. The rebuild must be about 3× leaner. That's the evidence that export quality beats the reference.
-- **m-logo-1 is a stretch target** until `SPEC.md` §11 Q1 is answered. It's run and reported, but doesn't gate a release.
+- **m-logo-1 is a stretch target** until `SPEC.md` §11 Q1 (a companion square lattice for the polar grid) is answered. The joint radius covers its rounded clip corners, but not its off-lattice clip rectangle. It's run and reported, but doesn't gate a release.
 - Radii are stored in 1/240 cell, so original radii that aren't multiples (e.g. e-logo-3's 2/35 cell) round to the nearest step. The thresholds absorb this. It's under 0.02 px at the original sizes.
 - Excluded: p-logo-2 (elliptical bowl) and p-logo-6 (two polar centres). Both are non-goals in `SPEC.md` §2.
 
@@ -76,7 +76,7 @@ fast-check, with 200 runs locally and 2,000 in CI. Generators build random **val
 | **P4 Valid arcs and continuity** | Every exported `A` has r > 0, endpoints that differ, and radius big enough to reach them (λ ≤ 1 + 1e-9 in the SVG 2 radius correction, so the renderer never has to correct). At every L/A or A/A junction, tangent directions match within 1e-9 rad, except at intended sharp corners (r = 0, miter or bevel joins). | Rules quoted in `ARCHITECTURE.md` §4.3. |
 | **P5 Symmetry closure** | Copies are on the lattice (P1). Applying a rotation of order n, n times, is the identity. Mirroring twice is the identity. | Per grid's native group. |
 | **P6 Arc recovery** | For random shapes with cut and intersect roles: every exported segment is an `L` or `A` (never a cubic), every `A` lies on a source circle within 1e-6 cells, and the recovered path's raster differs from Paper.js's cubic raster by ≤ 0.1% of ink. | `paper-jsdom`. |
-| **P7 Clamping and invalid shapes** | A fillet's tangent lengths never exceed its edge length. Invalid wraps are always reported, never exported. Exported contours never self-intersect. | Segment-intersection check on the output. |
+| **P7 Clamping and invalid shapes** | A fillet's tangent lengths (point and joint fillets) never exceed their edge length. Joint fillets are tangent to both neighbouring segments within 1e-9. Invalid wraps are always reported, never exported. Exported contours never self-intersect. | Segment-intersection check on the output. |
 | **P8 Persistence** | Save then open returns a deep-equal document. Migrating any stored older schema fixture then validating succeeds. | Fixtures in `tests/fixtures/schema-*`. |
 
 Polar grids with ray counts outside {4, 6, 8, 12, 24} use a 1e-12 relative tolerance for the arc equidistance check (`ARCHITECTURE.md` §4.1). This is the only invariant allowed a tolerance, and P1 asserts it's applied nowhere else.

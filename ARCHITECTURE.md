@@ -37,7 +37,7 @@ src/
   ui/         rail, dialogs, keyboard map, hint line, input handling, app store.
 ```
 
-**Dependency rule**, enforced by ESLint `import/no-restricted-paths` in CI:
+**Dependency rule**, enforced by `tests/architecture.test.ts`, which parses every import in `src/` and fails on a forbidden edge. That avoids adding ESLint as a dependency:
 
 ```
 ui ──► render ──► pipeline ──► geometry ◄── grids
@@ -93,6 +93,7 @@ interface Shape {
   path: Path;
   paint: Paint;
   role: 'add' | 'cut' | 'intersect';
+  jointRadius: Len240;                   // fillets corners created where this shape meets the result so far
 }
 
 interface GridDef {
@@ -211,6 +212,8 @@ LogoDocument
   → boolean      fold shapes in order: add = unite, cut = subtract, intersect = intersect
                  (skipped when there is a single add shape with no self-intersection)
   → recover      Paper.js cubics → L/A segments matched to source circles
+  → joints       fillet corners whose two segments come from different shapes, using the
+                 later shape's jointRadius (L–L, L–A, A–A fillets, solved analytically; clamped)
   → pieces       split into connected pieces: each outer contour + the holes inside it
   → Mark         { pieces: Piece[], invalid: Issue[], clamped: Issue[] }
 ```

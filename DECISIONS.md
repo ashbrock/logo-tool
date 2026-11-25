@@ -60,4 +60,7 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Cell fill mode is named Tile (T),** to avoid clashing with "fill" as a paint.
 - **Shapes are evaluated in creation order (add / cut / intersect), with keyboard reordering and no list panel.** It's an ordered boolean fold, not layers.
 - **Radii are stored as whole numbers of 1/240 cell,** exact for every allowed subdivision (1, 2, 3, 4, 6, 8).
-- **m-logo-1 is an open question.** Its rounded corners come from a rectangle clip, not lattice points. v1 default: leave it out of the must-pass rebuild set.
+- **Joint radius per shape.** Corners created by boolean operations get fillets from the later shape's joint radius. This gives rounded clip corners (m-logo-1, and stock "rays in a square" marks) without baking off-lattice points into the document.
+- **Named radii belong to the document.** There are no cross-document presets.
+- **Architecture boundaries are enforced by an import-scanning test,** not ESLint. That avoids an unapproved dependency.
+- **Open: a companion square lattice for the polar grid.** m-logo-1's clip rectangle has off-lattice corners. Until answered, m-logo-1 stays a stretch target.
