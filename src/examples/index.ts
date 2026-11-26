@@ -3,57 +3,14 @@
  * editable mark. Two are the designer's own references; the rest show techniques (cut, repeat along a
  * line, rotate any n, joint radius, strokes with arcs).
  */
-import { lattice, type Lattice } from '../geometry/lattice';
-import { defaultGrid, type GridDef, type Subdivision } from '../grids';
-import { apply, type Command } from '../model/commands';
-import { emptyDocument, LEN, type LogoDocument, type Repeat } from '../model/types';
-import type { CornerType } from '../geometry/corners';
+import { LEN, type LogoDocument, type Repeat } from '../model/types';
+import { builder, square } from './builder';
 
 export interface Example {
   readonly id: string;
   readonly name: string;
   readonly note: string;
   build(): LogoDocument;
-}
-
-const square = (w: number, h: number, sub: Subdivision): GridDef => ({ ...defaultGrid('square'), width: w, height: h, subdivision: sub } as GridDef);
-
-/** A tiny builder over commands. Points are given in cells and converted to lattice sub-steps. */
-function builder(grid: GridDef, name: string) {
-  let doc = emptyDocument(grid, name);
-  const sub = grid.subdivision;
-  const L = (x: number, y: number): Lattice => lattice(Math.round(x * sub), Math.round(y * sub));
-  const run = (c: Command) => {
-    const r = apply(doc, c);
-    if (!r.ok) throw new Error(`${name}: ${c.type}: ${r.error}`);
-    doc = r.doc;
-  };
-  const lastShape = () => doc.shapes[doc.shapes.length - 1]!;
-  return {
-    L,
-    polygon(pts: [number, number][], opts: { corners?: (number | [CornerType, number])[]; role?: 'add' | 'cut' | 'intersect'; repeat?: Repeat; joint?: number } = {}) {
-      run({ type: 'addShape', at: L(...pts[0]!) });
-      const id = lastShape().id;
-      for (const p of pts.slice(1)) run({ type: 'appendPoint', shapeId: id, at: L(...p) });
-      run({ type: 'closeShape', shapeId: id });
-      const vs = lastShape().path.vertices;
-      (opts.corners ?? []).forEach((c, i) => {
-        const [type, r] = typeof c === 'number' ? (['round', c] as [CornerType, number]) : c;
-        if (r > 0) run({ type: 'setRadius', vertexIds: [vs[i]!.id], radius: Math.round(r * LEN) });
-        if (type !== 'round') run({ type: 'setCorner', vertexIds: [vs[i]!.id], corner: type });
-      });
-      if (opts.role && opts.role !== 'add') run({ type: 'setRole', shapeId: id, role: opts.role });
-      if (opts.repeat) run({ type: 'setRepeat', shapeId: id, repeat: opts.repeat });
-      if (opts.joint) run({ type: 'setJointRadius', shapeId: id, value: Math.round(opts.joint * LEN) });
-    },
-    circle(x: number, y: number, r: number) {
-      run({ type: 'addShape', at: L(x, y) });
-      run({ type: 'setRadius', vertexIds: [lastShape().path.vertices[0]!.id], radius: Math.round(r * LEN) });
-    },
-    run,
-    lastShape,
-    get doc() { return doc; },
-  };
 }
 
 export const EXAMPLES: readonly Example[] = [

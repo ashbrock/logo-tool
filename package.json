@@ -13,7 +13,8 @@
     "spike:browser": "NODE_PATH=\"$(npm root -g)\" node spike/browser/check.mjs",
     "gallery": "node gallery/build.mjs",
     "e2e": "vite build && NODE_PATH=\"$(npm root -g)\" node e2e/first-playable.cjs",
-    "app:artifact": "vite build && node scripts/artifact.mjs"
+    "app:artifact": "vite build && node scripts/artifact.mjs",
+    "rebuilds": "vitest run tests/rebuilds.test.ts && NODE_PATH=\"$(npm root -g)\" node e2e/rebuilds.cjs"
   },
   "dependencies": {
     "paper": "0.17.0",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "fast-check": "4.11.0",
     "paper-jsdom": "0.17.0",
+    "pixelmatch": "7.1.0",
     "typescript": "7.0.2",
     "vite": "8.3.8",
     "vitest": "5.1.1"
