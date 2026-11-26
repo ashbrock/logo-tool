@@ -227,7 +227,7 @@ Contours are grouped by containment: each outer contour (counter-clockwise in sc
 
 1. **Bounds:** the mark's tight bounds in cells, plus `paddingCells`.
 2. **Write:** `write-path.ts` emits absolute `M L H V A Z`, with arcs as `A r r 0 large sweep x y`.
-   - Coordinates are in export units (`unitsPerCell`, default chosen so the long side is 512).
+   - Coordinates are in export units (`unitsPerCell`, default 100 per cell, which gives whole-number coordinates for whole cells and 1/2 and 1/4 steps).
    - Square, rows and affine 2:3 / 1:2 grids give integer coordinates when `unitsPerCell` allows. Other grids are rounded to 3 decimal places.
    - Output order is fixed (pieces sorted by top-left of bounds, then by contour), so it's deterministic.
 3. **SVGO** with `preset-default` and these overrides:
