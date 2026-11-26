@@ -10,7 +10,7 @@ const fs = require('node:fs');
   await new Promise((r) => setTimeout(r, 2000));
   const b = await chromium.launch();
   const results = [];
-  const check = async (name, f) => { try { await f(); results.push(`ok   ${name}`); } catch (e) { results.push(`FAIL ${name}: ${e.message.split('\n')[0]}`); process.exitCode = 1; } };
+  const check = async (name, f) => { try { await f(); results.push(`ok   ${name}`); } catch (e) { results.push(`FAIL ${name}: ${e.message.split('\n').slice(0, 6).join(' | ')}`); process.exitCode = 1; } };
   try {
     const p = await b.newPage({ viewport: { width: 1280, height: 860 }, permissions: ['clipboard-read', 'clipboard-write'] });
     const errors = [];
@@ -18,6 +18,9 @@ const fs = require('node:fs');
     p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
     await p.goto('http://localhost:5310/');
     await p.waitForSelector('svg.canvas');
+    // First visit opens the New-mark dialog; keep the default mark for these checks.
+    await p.waitForSelector('.dialog.new-mark');
+    await p.keyboard.press('Escape');
     const at = (x, y) => p.evaluate(([x, y]) => { const s = document.querySelector('svg.canvas'); const pt = s.createSVGPoint(); pt.x = x; pt.y = y; const q = pt.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; }, [x, y]);
     const click = async (x, y) => { const [sx, sy] = await at(x, y); await p.mouse.move(sx, sy); await p.mouse.click(sx, sy); };
     const markD = () => p.evaluate(() => document.querySelector('svg.canvas > path:not([fill="none"])')?.getAttribute('d') ?? '');
@@ -124,6 +127,43 @@ const fs = require('node:fs');
       assert.equal(await p.evaluate(() => String(window.getSelection())), '');
       assert.match(await p.locator('.value').filter({ hasText: 'points' }).first().textContent(), /\d+ points/);
     });
+    // ---- grids ----
+    await check('New… offers every grid type, and creates the chosen one', async () => {
+      await p.locator('.rail-head button', { hasText: 'New…' }).click();
+      await p.waitForSelector('.dialog.new-mark');
+      assert.equal(await p.locator('.grid-types button').count(), 5);
+      await p.locator('.grid-types button[data-preset="polar"]').click();
+      await p.locator('.dialog.new-mark button', { hasText: 'Create' }).click();
+      assert.equal(await p.locator('.dialog').count(), 0);
+      assert.match(await p.locator('#grid-label + .value').textContent(), /^Polar · 6 rings × 24 rays/);
+      assert.ok(await p.evaluate(() => document.querySelectorAll('svg.canvas circle[fill="none"]').length >= 6), 'rings drawn');
+    });
+    await check('on a polar grid, points snap to rings and rays and a closed shape fills', async () => {
+      // Centre is (6, 6); ring 3 at 0°, 90°, 180°, 270°.
+      for (const [x, y] of [[9, 6], [6, 9], [3, 6], [6, 3], [9, 6]]) await click(x, y);
+      const d = await markD();
+      assert.match(d, /^M9 6/);
+      assert.ok(d.length > 10);
+    });
+    await check('an isometric 2:3 grid snaps to its 2:3 slopes', async () => {
+      await p.keyboard.press('Control+z'); await p.keyboard.press('Control+z'); await p.keyboard.press('Control+z'); await p.keyboard.press('Control+z'); await p.keyboard.press('Control+z');
+      await p.locator('.rail-head button', { hasText: 'New…' }).click();
+      await p.locator('.grid-types button[data-preset="isometric"]').click();
+      await p.locator('.dialog.new-mark .seg button', { hasText: '2:3' }).click();
+      await p.locator('.dialog.new-mark button', { hasText: 'Create' }).click();
+      assert.match(await p.locator('#grid-label + .value').textContent(), /^Isometric 2:3/);
+      await p.keyboard.press('p');
+      for (const [x, y] of [[1, 2], [2, 2 + 2 / 3], [3, 2], [2, 2 - 2 / 3], [1, 2]]) await click(x, y);
+      const d = await markD();
+      assert.match(d, /2\.66667/); assert.match(d, /1\.33333/); assert.match(d, /Z$/);
+    });
+    await check('back to a square grid for the remaining checks', async () => {
+      await p.locator('.rail-head button', { hasText: 'New…' }).click();
+      await p.locator('.grid-types button[data-preset="square"]').click();
+      await p.locator('.dialog.new-mark button', { hasText: 'Create' }).click();
+      assert.match(await p.locator('#grid-label + .value').textContent(), /^Square · 6 × 6/);
+    });
+
     // ---- export ----
     const openExample = async (id) => { await p.selectOption('#examples', id); await p.waitForTimeout(100); };
     const dl = async () => { const [d] = await Promise.all([p.waitForEvent('download'), p.locator('.dialog .btn.primary').click()]); return { name: d.suggestedFilename(), data: fs.readFileSync(await d.path()) }; };

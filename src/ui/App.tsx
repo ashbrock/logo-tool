@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useReducer, useRef } from 'preact/hooks';
 import paper from 'paper/dist/paper-core';
-import { defaultGrid, type GridDef, type Subdivision } from '../grids';
+import { defaultGrid, gridSize, nearest, SUBDIVISIONS, type GridDef, type Subdivision } from '../grids';
 import { makePaperEngine } from '../boolean/paper-adapter';
 import { evaluateDocument } from '../pipeline/resolve';
 import { emptyDocument, LEN, type LogoDocument, type Repeat, type Vertex } from '../model/types';
@@ -16,6 +16,7 @@ import { Canvas } from '../render/Canvas';
 import { EXAMPLES } from '../examples';
 import { initState, reducer, type UiState } from './state';
 import { ExportDialog } from './ExportDialog';
+import { NewMarkDialog } from './NewMarkDialog';
 import { buildSvg, exportProblems, finishSvg } from '../export/svg';
 import { loadSvgo, svgoNow } from '../export/svgo-loader';
 import { copySvg } from './clipboard';
@@ -24,19 +25,19 @@ const engine = makePaperEngine(paper as unknown as typeof import('paper'));
 const STORAGE_KEY = 'logo-tool:doc';
 const CORNERS: CornerType[] = ['auto', 'outer', 'round', 'inward'];
 
-function loadInitial(): { doc: LogoDocument; autosave: boolean } {
+function loadInitial(): { doc: LogoDocument; autosave: boolean; fresh: boolean } {
   const fresh = emptyDocument({ ...defaultGrid('square'), width: 8, height: 8, subdivision: 2 } as GridDef);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const r = parseProject(raw);
-      if (r.ok) return { doc: r.doc, autosave: true };
+      if (r.ok) return { doc: r.doc, autosave: true, fresh: false };
     }
     localStorage.setItem(STORAGE_KEY + ':probe', '1');
     localStorage.removeItem(STORAGE_KEY + ':probe');
-    return { doc: fresh, autosave: true };
+    return { doc: fresh, autosave: true, fresh: true };
   } catch {
-    return { doc: fresh, autosave: false };
+    return { doc: fresh, autosave: false, fresh: true };
   }
 }
 
@@ -89,7 +90,8 @@ export function App() {
       const doc = state.history.present.doc;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      if (state.dialog) return; // the dialog handles its own keys
+      // Dialogs handle their own keys while focus is inside them; Esc closes one wherever focus is.
+      if (state.dialog) { if (e.key === 'Escape') { e.preventDefault(); dispatch({ type: 'dialog', value: null }); } return; }
       const mod = e.metaKey || e.ctrlKey;
       const sel = selectedVertices(state);
       const sub = doc.grid.subdivision;
@@ -165,6 +167,26 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // First visit: start by choosing a grid (SPEC.md §4.2).
+  useEffect(() => { if (initial.fresh) dispatch({ type: 'dialog', value: 'new' }); }, []);
+  const firstVisit = useRef(initial.fresh);
+
+  const createMark = (grid: GridDef) => {
+    firstVisit.current = false;
+    dispatch({ type: 'command', command: { type: 'replace', doc: emptyDocument(grid, 'Untitled mark') }, label: 'New mark' });
+    dispatch({ type: 'dialog', value: null });
+    dispatch({ type: 'mode', mode: 'place' });
+  };
+  const openExample = (id: string) => {
+    const ex = EXAMPLES.find((x) => x.id === id);
+    if (!ex) return;
+    firstVisit.current = false;
+    dispatch({ type: 'command', command: { type: 'replace', doc: ex.build() }, label: `Open ${ex.name}` });
+    dispatch({ type: 'dialog', value: null });
+    dispatch({ type: 'mode', mode: 'adjust' });
+    dispatch({ type: 'status', text: `${ex.name}: ${ex.note} Undo to go back.` });
+  };
+
   // Load SVGO once the app is idle, so Copy SVG can write to the clipboard inside the click.
   useEffect(() => {
     const start = () => void loadSvgo();
@@ -201,7 +223,7 @@ export function App() {
   const corner = same(sel.map((v) => v.corner));
   const radius = same(sel.map(radiusOf));
 
-  const setGrid = (patch: Partial<{ width: number; height: number; subdivision: Subdivision }>) =>
+  const setGrid = (patch: Partial<{ width: number; height: number; subdivision: Subdivision; rings: number }>) =>
     dispatch({ type: 'command', command: { type: 'setGrid', grid: { ...g, ...patch } as GridDef }, label: 'Grid' });
 
   const blocked = exportProblems(doc, evaluated);
@@ -220,6 +242,7 @@ export function App() {
         <header class="rail-head">
           <input class="mark-name" id="mark-name" aria-label="Mark name" value={doc.name} onChange={(e) => dispatch({ type: 'command', command: { type: 'rename', name: (e.target as HTMLInputElement).value }, label: 'Rename' })} />
           <div class="row">
+            <button type="button" class="btn" onClick={() => dispatch({ type: 'dialog', value: 'new' })} title="Start a new mark on any grid type">New…</button>
             <button type="button" class="btn" disabled={state.history.past.length === 0} onClick={() => dispatch({ type: 'undo' })} aria-label="Undo">Undo</button>
             <button type="button" class="btn" disabled={state.history.future.length === 0} onClick={() => dispatch({ type: 'redo' })} aria-label="Redo">Redo</button>
           </div>
@@ -242,19 +265,30 @@ export function App() {
 
         <section class="group" aria-labelledby="grid-label">
           <h2 class="label" id="grid-label">Grid</h2>
-          <p class="value">Square · {g.kind === 'affine' ? `${g.width} × ${g.height}` : ''} · {g.subdivision === 1 ? 'whole cells' : `1/${g.subdivision} steps`}</p>
+          <p class="value">{gridLabel(g)}</p>
           <div class="row">
-            <label class="field">Size
-              <select id="grid-size" value={g.kind === 'affine' ? g.width : 8} onChange={(e) => { const n = Number((e.target as HTMLSelectElement).value); setGrid({ width: n, height: n }); (e.target as HTMLSelectElement).blur(); }}>
-                {[4, 6, 8, 10, 12, 16].map((n) => <option value={n}>{n} × {n}</option>)}
-              </select>
-            </label>
+            {g.kind === 'affine' && g.preset !== 'typographic' ? (
+              <label class="field">Size
+                <select id="grid-size" value={g.width === g.height ? g.width : ''} onChange={(e) => { const n = Number((e.target as HTMLSelectElement).value); setGrid({ width: n, height: n }); (e.target as HTMLSelectElement).blur(); }}>
+                  {g.width !== g.height ? <option value="">{g.width} × {g.height}</option> : null}
+                  {[4, 6, 8, 10, 12, 16, 20, 24].map((n) => <option value={n}>{n} × {n}</option>)}
+                </select>
+              </label>
+            ) : null}
+            {g.kind === 'polar' ? (
+              <label class="field">Rings
+                <select id="grid-rings" value={g.rings} onChange={(e) => { setGrid({ rings: Number((e.target as HTMLSelectElement).value) }); (e.target as HTMLSelectElement).blur(); }}>
+                  {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => <option value={n}>{n}</option>)}
+                </select>
+              </label>
+            ) : null}
             <label class="field">Steps
               <select id="grid-sub" value={g.subdivision} onChange={(e) => { setGrid({ subdivision: Number((e.target as HTMLSelectElement).value) as Subdivision }); (e.target as HTMLSelectElement).blur(); }}>
-                {[1, 2, 4, 8].map((n) => <option value={n}>{n === 1 ? 'whole' : `1/${n}`}</option>)}
+                {SUBDIVISIONS.map((n) => <option value={n}>{n === 1 ? 'whole' : `1/${n}`}</option>)}
               </select>
             </label>
           </div>
+          {doc.shapes.length === 0 ? <button type="button" class="link" onClick={() => dispatch({ type: 'dialog', value: 'new' })}>Change grid type…</button> : null}
         </section>
 
         <section class="group" aria-labelledby="mode-label">
@@ -335,6 +369,10 @@ export function App() {
         <div class="canvas-wrap">
           <Canvas state={state} dispatch={dispatch} mark={evaluated.mark} construction={evaluated.construction} />
         </div>
+        {state.dialog === 'new' ? (
+          <NewMarkDialog firstVisit={firstVisit.current} onCreate={createMark} onExample={openExample}
+            onClose={() => { firstVisit.current = false; dispatch({ type: 'dialog', value: null }); }} />
+        ) : null}
         {state.dialog === 'export' ? (
           <ExportDialog doc={doc} evaluated={evaluated} dispatch={dispatch}
             onClose={() => dispatch({ type: 'dialog', value: null })}
@@ -353,8 +391,20 @@ export function App() {
 
 /** The lattice point nearest the grid's centre: the default repeat centre and mirror axis. */
 function gridCentre(g: GridDef) {
-  const w = g.kind === 'affine' ? g.width : 0, h = g.kind === 'affine' ? g.height : 0;
-  return lattice(Math.round((w * g.subdivision) / 2), Math.round((h * g.subdivision) / 2));
+  if (g.kind === 'polar') return lattice(0, 0);
+  const { width, height } = gridSize(g);
+  return nearest({ x: width / 2, y: height / 2 }, g);
+}
+
+function gridLabel(g: GridDef): string {
+  const steps = g.subdivision === 1 ? 'whole cells' : `1/${g.subdivision} steps`;
+  switch (g.preset) {
+    case 'square': return `Square · ${g.width} × ${g.height}${g.slantDeg ? ` · slant ${g.slantDeg}°` : ''}${g.rotationDeg ? ` · ${g.rotationDeg}°` : ''} · ${steps}`;
+    case 'triangular': return `Triangular · ${g.width} × ${g.height}${g.rotationDeg ? ` · ${g.rotationDeg}°` : ''} · ${steps}`;
+    case 'isometric': return `Isometric ${g.ratio === 'true30' ? 'true 30°' : g.ratio} · ${g.width} × ${g.height} · ${steps}`;
+    case 'typographic': return `Typographic · ${g.width} × ${g.height} · ${steps}`;
+    case 'polar': return `Polar · ${g.rings} rings × ${g.rays} rays${g.companionSquare ? ' + square' : ''} · ${steps}`;
+  }
 }
 
 function RepeatControls({ repeat, sub, centre, onChange }: { repeat: Repeat; sub: number; centre: ReturnType<typeof gridCentre>; onChange: (r: Repeat) => void }) {

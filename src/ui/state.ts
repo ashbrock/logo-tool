@@ -26,7 +26,7 @@ export interface UiState {
   /** What the canvas currently offers, for the hint line. */
   readonly arcPreview: { readonly count: number; readonly index: number } | null;
   /** The open dialog, if any. Canvas shortcuts are off while one is open. */
-  readonly dialog: 'export' | null;
+  readonly dialog: 'export' | 'new' | null;
 }
 
 export type Action =
@@ -43,7 +43,7 @@ export type Action =
   | { type: 'arcCycle'; delta: number }
   | { type: 'arcPreview'; value: { count: number; index: number } | null }
   | { type: 'finishPlacing'; selectShape: boolean }
-  | { type: 'dialog'; value: 'export' | null };
+  | { type: 'dialog'; value: 'export' | 'new' | null };
 
 export const initState = (doc: LogoDocument): UiState => ({
   history: initHistory(doc), mode: 'place', selection: [], placing: null, status: null, paperPreview: false, strokeWidth: 30, arcArmed: false, arcIndex: 0, arcPreview: null, dialog: null,

@@ -142,3 +142,10 @@ One or two lines per significant decision, with the reason. Newest last.
 - **m-logo-2 is one ribbon,** drawn as two strokes that meet under a round cap so neither crosses itself. **motion-logo's m is two shapes merged:** its humps cross at a point off the lattice, which the merge computes exactly.
 - **Arcs over a half turn need an explicit direction** in the rebuild builder. Its first motion-logo attempt chose the short way round the 270° counter tops, and the pixel diff caught it.
 - **Open:** a-logo, node-logo and p-logo-5 (see VERIFICATION.md §1.2 for the measured reasons).
+
+## Grid types in the interface
+
+- **Every grid type is in the New-mark dialog,** with a live preview of each lattice. Grid lines come from the lattice itself (`src/grids/lines.ts`), shared by the canvas, the previews and the export overlay. The rebuilds had already exercised every grid type in the core; this only adds drawing and controls.
+- **Type parameters are set when the mark is created.** Slant, rotation, ratio, rays and the companion lattice are chosen in the dialog. The rail changes size, rings and steps, which `setGrid` rescales exactly or refuses. "Change grid type…" appears while the mark is empty. Editing slant or rotation on a mark with points would rarely keep them on the lattice, so it waits until it's asked for.
+- **Typographic rows are dashed `--canvas-lattice` lines with `--canvas-ruler` labels to the right.** DESIGN.md names no row style, so these reuse existing tokens: construction rather than mark, readable but quiet. The canvas adds two cells of margin on the right for the labels.
+- **The New-mark dialog opens on first visit** (SPEC.md §4.2). Esc keeps the default square mark. Esc now closes any dialog wherever focus is; the e2e suite found that otherwise it failed intermittently.

@@ -8,6 +8,7 @@ import type { Dispatch } from 'preact/hooks';
 import { latticeEq, type Lattice } from '../geometry/lattice';
 import type { Vec2 } from '../geometry/num';
 import { gridSize, latticePoints, nearest, toPlane } from '../grids';
+import { gridLines, namedRows } from '../grids/lines';
 import { writePath } from '../export/write-path';
 import type { Mark } from '../pipeline/evaluate';
 import type { ShapeConstruction } from '../pipeline/resolve';
@@ -33,6 +34,8 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   const doc = state.history.present.doc;
   const g = doc.grid;
   const { width: W, height: H } = gridSize(g);
+  // Typographic grids label their rows to the right, so they get two more cells there.
+  const XR = g.kind === 'affine' && g.preset === 'typographic' ? 2 : 0;
   const svg = useRef<SVGSVGElement>(null);
   const [pxPerCell, setPx] = useState(48);
   const [snap, setSnap] = useState<Lattice | null>(null);
@@ -44,11 +47,11 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const r = el.getBoundingClientRect();
-      setPx(Math.min(r.width / (W + 2 * MARGIN), r.height / (H + 2 * MARGIN)) || 48);
+      setPx(Math.min(r.width / (W + 2 * MARGIN + XR), r.height / (H + 2 * MARGIN)) || 48);
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [W, H]);
+  }, [W, H, XR]);
 
   const px = (n: number) => n / pxPerCell;
   const P = (l: Lattice) => toPlane(l, g);
@@ -184,15 +187,20 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   // ---- drawing ----
   const paper = state.paperPreview;
   const sub = g.subdivision;
+  // Lattice lines for any grid type (minor first, then major), polar rings, and typographic rows.
+  const gl = useMemo(() => gridLines(g), [g]);
   const lines: preact.JSX.Element[] = [];
-  for (let i = 0; i <= W * sub; i++) {
-    const x = i / sub, major = i % sub === 0;
-    lines.push(<line key={`x${i}`} x1={x} y1={0} x2={x} y2={H} stroke={major ? 'var(--canvas-grid-major)' : 'var(--canvas-grid-minor)'} stroke-width={1} {...ve} />);
+  for (const major of [false, true]) {
+    const stroke = major ? 'var(--canvas-grid-major)' : 'var(--canvas-grid-minor)';
+    gl.lines.forEach((l, i) => { if (l.major === major) lines.push(<line key={`l${major ? 'M' : 'm'}${i}`} x1={l.a.x} y1={l.a.y} x2={l.b.x} y2={l.b.y} stroke={stroke} stroke-width={1} {...ve} />); });
+    gl.rings.forEach((r, i) => { if (r.major === major) lines.push(<circle key={`r${major ? 'M' : 'm'}${i}`} cx={r.centre.x} cy={r.centre.y} r={r.r} fill="none" stroke={stroke} stroke-width={1} {...ve} />); });
   }
-  for (let j = 0; j <= H * sub; j++) {
-    const y = j / sub, major = j % sub === 0;
-    lines.push(<line key={`y${j}`} x1={0} y1={y} x2={W} y2={y} stroke={major ? 'var(--canvas-grid-major)' : 'var(--canvas-grid-minor)'} stroke-width={1} {...ve} />);
-  }
+  const rows = namedRows(g).map((r) => (
+    <g key={`row${r.name}`}>
+      <line x1={0} y1={r.y} x2={r.width} y2={r.y} stroke="var(--canvas-lattice)" stroke-width={1} stroke-dasharray="6 4" {...ve} />
+      <text x={r.width + px(6)} y={r.y + px(4)} font-size={px(11)} fill="var(--canvas-ruler)" font-family="var(--font-mono)">{r.name}</text>
+    </g>
+  ));
   const crosses = latticePoints(g).map((l) => {
     const p = P(l), whole = l.u % sub === 0 && l.v % sub === 0, k = px(whole ? 5 : 3);
     return <path key={`c${l.u},${l.v}`} d={`M${p.x - k} ${p.y}H${p.x + k}M${p.x} ${p.y - k}V${p.y + k}`} stroke="var(--canvas-lattice)" stroke-width={1} opacity={whole ? 1 : 0.5} {...ve} />;
@@ -329,7 +337,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     <svg
       ref={svg}
       class={`canvas mode-${state.mode}${drag?.kind === 'radius' ? ' dragging-radius' : ''}`}
-      viewBox={`${-MARGIN} ${-MARGIN} ${W + 2 * MARGIN} ${H + 2 * MARGIN}`}
+      viewBox={`${-MARGIN} ${-MARGIN} ${W + 2 * MARGIN + XR} ${H + 2 * MARGIN}`}
       preserveAspectRatio="xMidYMid meet"
       role="application"
       aria-label={`Construction canvas, ${g.preset} grid ${W} by ${H} cells`}
@@ -338,8 +346,8 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
       onPointerUp={onPointerUp}
       onPointerLeave={() => !drag && setSnap(null)}
     >
-      <rect x={-MARGIN} y={-MARGIN} width={W + 2 * MARGIN} height={H + 2 * MARGIN} fill={paper ? 'var(--paper-bg)' : 'var(--canvas-bg)'} />
-      {paper ? null : <g>{lines}{crosses}{ruler}</g>}
+      <rect x={-MARGIN} y={-MARGIN} width={W + 2 * MARGIN + XR} height={H + 2 * MARGIN} fill={paper ? 'var(--paper-bg)' : 'var(--canvas-bg)'} />
+      {paper ? null : <g>{lines}{rows}{crosses}{ruler}</g>}
       {paper ? null : <g>{cutOutlines}</g>}
       <path d={markD} fill={paper ? doc.export.colour : 'var(--canvas-mark)'} />
       {paper ? null : <g>{invalid}{circles}{placingPath}</g>}

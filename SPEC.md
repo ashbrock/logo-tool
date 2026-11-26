@@ -75,6 +75,8 @@ There is **one working screen** plus two dialogs. Exact sizes, colours and type 
 Opens on first visit, and from **New**. It has two parts:
 - **Grid type**, a vertical list with a live mini-preview of each lattice: Square, Triangular, Isometric, Polar, Typographic. Choosing one shows its parameters with defaults (§5).
 - **Examples:** 2–3 rebuilt reference marks (e.g. p-logo-1, e-logo-3, motion-logo). These open as normal, editable documents.
+- Parameters for the chosen type are edited next to a large live preview: columns and rows (or rings and rays), steps, slant (square), rotation, ratio (isometric) and the companion square lattice (polar). Enter creates. Arrow keys move through the type list.
+- After creation the rail changes size (or rings) and steps. While the mark is empty it also offers "Change grid type…", which reopens this dialog.
 
 The dialog has no "skip". Closing it with Esc keeps the current document, or creates a default square 6 × 6 document on first visit.
 

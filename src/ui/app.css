@@ -89,3 +89,25 @@ input.invalid { border-color: var(--color-danger); }
 /* Export stays reachable while the rail scrolls (it is the primary action, SPEC.md §4.1). */
 .export-actions { position: sticky; bottom: calc(-1 * var(--space-2)); margin-top: auto; background: var(--color-surface); padding-bottom: var(--space-2); flex-direction: row; }
 .export-actions .btn { flex: 1; padding: 0 var(--space-0-5); }
+
+/* New-mark dialog (SPEC.md §4.2). */
+.dialog.new-mark { max-width: 760px; display: flex; flex-direction: column; gap: var(--space-3); }
+.new-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--space-3); }
+.grid-types { display: flex; flex-direction: column; gap: var(--space-0-5); }
+.grid-types button {
+  display: flex; gap: var(--space-1); align-items: center; text-align: left; padding: var(--space-0-5) var(--space-1);
+  background: transparent; color: var(--color-text); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-control); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease);
+}
+.grid-types button:hover { background: var(--color-surface-raised); }
+.grid-types button:active { box-shadow: inset 0 -1px 0 var(--color-accent); }
+.grid-types button[aria-pressed="true"] { border-color: var(--color-accent); }
+.grid-types button[aria-pressed="true"] .type-name { color: var(--color-accent); font-weight: 600; }
+.grid-preview { flex: none; background: var(--canvas-bg); border-radius: var(--radius-control); }
+.type-text { display: flex; flex-direction: column; }
+.grid-params { display: flex; flex-direction: column; gap: var(--space-2); }
+.big-preview { display: flex; justify-content: center; padding: var(--space-1); background: var(--canvas-bg); border: var(--border-width) solid var(--color-border); }
+.param-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); }
+.param-grid input { width: 100%; }
+.examples { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.rail .link { align-self: flex-start; font-size: var(--type-micro-size); }
