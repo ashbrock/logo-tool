@@ -20,6 +20,7 @@ import { NewMarkDialog } from './NewMarkDialog';
 import { buildSvg, exportProblems, finishSvg } from '../export/svg';
 import { loadSvgo, svgoNow } from '../export/svgo-loader';
 import { copySvg } from './clipboard';
+import { radiusStep, stepRadius } from './steps';
 import { download, fileStem } from '../export/png';
 
 const engine = makePaperEngine(paper as unknown as typeof import('paper'));
@@ -97,7 +98,7 @@ export function App() {
       const mod = e.metaKey || e.ctrlKey;
       const sel = selectedVertices(state);
       const sub = doc.grid.subdivision;
-      const step = e.shiftKey ? LEN : LEN / sub;
+      const step = radiusStep(sub, e.shiftKey);
       const k = e.key;
       const run = (command: Parameters<typeof dispatch>[0]) => { e.preventDefault(); dispatch(command); };
       if (mod && k.toLowerCase() === 'z') return run({ type: e.shiftKey ? 'redo' : 'undo' });
@@ -149,9 +150,18 @@ export function App() {
         const next = CORNERS[(cur + (e.shiftKey ? CORNERS.length - 1 : 1)) % CORNERS.length]!;
         return run({ type: 'command', command: { type: 'setCorner', vertexIds: ids, corner: next }, label: 'Corner type' });
       }
+      if (e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) {
+        // Joint radius (matched by key position: Alt+[ types another character on a Mac).
+        e.preventDefault();
+        for (const id of selectedShapeIds(state)) {
+          const sh = doc.shapes.find((x) => x.id === id)!;
+          dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: stepRadius(sh.jointRadius, e.code === 'BracketRight' ? 1 : -1, step) }, label: 'Joint radius', key: `joint-${id}`, at: performance.now() });
+        }
+        return;
+      }
       if (k === ']' || k === '[' || k === '}' || k === '{') {
         const cur = typeof sel[0]!.radius === 'number' ? sel[0]!.radius : 0;
-        const r = Math.max(0, cur + (k === ']' || k === '}' ? step : -step));
+        const r = stepRadius(cur, k === ']' || k === '}' ? 1 : -1, step);
         return run({ type: 'command', command: { type: 'setRadius', vertexIds: ids, radius: r }, label: 'Radius', key: `radius-${ids.join()}`, at: performance.now() });
       }
       if (k === '0') return run({ type: 'command', command: { type: 'setRadius', vertexIds: ids, radius: 0 }, label: 'Remove rounding' });
@@ -331,9 +341,9 @@ export function App() {
                 ))}
               </div>
               <div class="row radius">
-                <button type="button" class="btn" aria-label="Smaller radius" onClick={() => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: Math.max(0, Math.round((radius ?? 0) * LEN) - LEN / g.subdivision) }, label: 'Radius' })}>−</button>
+                <button type="button" class="btn" aria-label="Smaller radius" title="Shift: one grid step" onClick={(e) => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: stepRadius(Math.round((radius ?? 0) * LEN), -1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Radius' })}>−</button>
                 <span class="value" aria-live="polite">r {radius === undefined ? 'mixed' : radius.toFixed(2)}</span>
-                <button type="button" class="btn" aria-label="Larger radius" onClick={() => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: Math.round((radius ?? 0) * LEN) + LEN / g.subdivision }, label: 'Radius' })}>+</button>
+                <button type="button" class="btn" aria-label="Larger radius" title="Shift: one grid step" onClick={(e) => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: stepRadius(Math.round((radius ?? 0) * LEN), 1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Radius' })}>+</button>
               </div>
             </>
           )}
@@ -351,9 +361,9 @@ export function App() {
             </div>
             <RepeatControls repeat={firstShape.repeat} grid={g} centre={gridCentre(g)} picking={!!state.pickCentre} onPick={() => dispatch({ type: 'pickCentre', shapeIds: state.pickCentre ? null : shapeIds })} onChange={(repeat) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRepeat', shapeId: id, repeat }, label: 'Repeat' }))} />
             <div class="row radius">
-              <button type="button" class="btn" aria-label="Smaller joint radius" onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: Math.max(0, firstShape.jointRadius - 10) }, label: 'Joint radius' }))}>−</button>
+              <button type="button" class="btn" aria-label="Smaller joint radius" title="Shift: one grid step" onClick={(e) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: stepRadius(firstShape.jointRadius, -1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Joint radius' }))}>−</button>
               <span class="value" title="Rounds the corners this shape creates where it meets others">joint {(firstShape.jointRadius / LEN).toFixed(2)}</span>
-              <button type="button" class="btn" aria-label="Larger joint radius" onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: firstShape.jointRadius + 10 }, label: 'Joint radius' }))}>+</button>
+              <button type="button" class="btn" aria-label="Larger joint radius" title="Shift: one grid step" onClick={(e) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: stepRadius(firstShape.jointRadius, 1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Joint radius' }))}>+</button>
             </div>
             </>
           )}

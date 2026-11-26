@@ -144,7 +144,7 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 4. Moving a point onto its neighbour merges them (§9.1).
 
 ### 6.5 Round a corner
-1. Select one or more points. Drag the **radius handle** on the right of the last selected point's selection ring (right to increase, left to decrease; one cell of drag is one cell of radius; snaps to 1/24 cell, or to the sub-step with Shift), press `]` or `[` to change the radius by one sub-step (Shift: one cell), or use the rail. 0 removes rounding. A line's end points have no corner, so they show no handle.
+1. Select one or more points. Drag the **radius handle** on the right of the last selected point's selection ring (right to increase, left to decrease; one cell of drag is one cell of radius; snaps to 1/24 cell, or to the sub-step with Shift), press `]` or `[`, or use the rail's − and +. **Every radius control steps the same way:** 1/24 cell, or one grid sub-step with Shift, snapping to that step. 0 removes rounding. A line's end points have no corner, so they show no handle.
 2. The radius is always **drawn as a circle** (§7.4). Typed values snap to multiples of 1/240 of a cell.
 3. **Named radii:** "Save radius" in the Point section stores the current value as a named radius (e.g. `r1 = 0.30`). Points can use a named radius, and changing it updates them all. That's how a mark keeps one consistent radius (see e-logo-3).
 
@@ -167,7 +167,7 @@ At radius 0 all four types give a sharp corner exactly on the point.
 2. Shapes are evaluated in creation order: the mark starts empty, then each shape adds to, cuts from or intersects the result so far. Cmd+[ and Cmd+] move the selected shape earlier or later in that order. There's no list panel (see the non-goals).
 3. Cut shapes draw their outline as a dashed construction line on the canvas, so you can still select and edit them.
 4. All boolean operations are **live**: moving a point of a cut shape updates the mark. Results are never baked in, because intersection points are generally not lattice points.
-5. **Joint radius.** Every shape has a joint radius (default 0). Corners that the boolean operation *creates*, where this shape's outline crosses the result so far, are rounded with fillets of that radius. Corners at the shape's own points keep their per-point settings. Joint fillets are drawn as fillet circles like round corners, and are clamped the same way (§9.4). Set it in the Shape section, or with Alt+`[` and Alt+`]`. This is how rays clipped by a frame get rounded clip corners (m-logo-1).
+5. **Joint radius.** Every shape has a joint radius (default 0). Corners that the boolean operation *creates*, where this shape's outline crosses the result so far, are rounded with fillets of that radius. Corners at the shape's own points keep their per-point settings. Joint fillets are drawn as fillet circles like round corners, and are clamped the same way (§9.4). Set it in the Shape section, or with Alt+`[` and Alt+`]`, in the same steps as a point's radius. This is how rays clipped by a frame get rounded clip corners (m-logo-1).
 
 ### 6.8 Tile mode (cell fill)
 1. Press T. Hovering a cell previews the current tile in it.
@@ -278,12 +278,12 @@ Cmd means Ctrl on Windows and Linux. All shortcuts are listed in a sheet opened 
 | Arrows / Shift+arrows | Nudge one sub-step / one cell |
 | Tab / Shift+Tab | Next / previous point in shape |
 | R / Shift+R | Cycle corner type forward / back |
-| `[` `]` / Shift+`[` `]` | Radius − / + one sub-step / one cell |
+| `[` `]` / Shift+`[` `]` | Radius − / + 1/24 cell / one sub-step |
 | 0 | Radius 0 |
 | S | Toggle fill / stroke |
 | `,` `.` | Stroke width − / + one sub-step |
 | 1 / 2 / 3 | Role: add / cut / intersect |
-| Alt+`[` `]` | Joint radius − / + one sub-step |
+| Alt+`[` `]` | Joint radius − / + 1/24 cell (Shift: one sub-step) |
 | Cmd+[ / Cmd+] | Move shape earlier / later in evaluation order |
 | Shift+H / Shift+V | Mirror selected shapes horizontally / vertically |
 | E / Shift+E | Rotate selected shapes by grid step clockwise / anticlockwise |

@@ -39,7 +39,7 @@ const fs = require('node:fs');
       await click(6, 2);
       await p.keyboard.press('r'); await p.keyboard.press('r');
       for (let i = 0; i < 3; i++) await p.keyboard.press(']');
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 1.50');
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.13'); // 3 × 1/24 cell
     });
     await check('the radius handle drags: right increases, left decreases', async () => {
       await p.keyboard.press('0');
@@ -56,7 +56,16 @@ const fs = require('node:fs');
       await p.selectOption('#grid-sub', '2');
       await click(6, 2);
       await p.keyboard.press(']');
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.75');
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.29'); // 0.25 + 1/24
+    });
+    await check('the rail’s + and − step like ] and [ (1/24 cell; Shift: a grid step)', async () => {
+      await p.locator('button[aria-label="Larger radius"]').click();
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.33');
+      await p.locator('button[aria-label="Smaller radius"]').click();
+      await p.keyboard.press('[');
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.25');
+      await p.locator('button[aria-label="Larger radius"]').click({ modifiers: ['Shift'] });
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.50'); // Shift: next 1/2-cell grid step
     });
     await check('Delete removes the selected point', async () => {
       await click(6, 6);

@@ -14,6 +14,7 @@ import type { Mark } from '../pipeline/evaluate';
 import type { ShapeConstruction } from '../pipeline/resolve';
 import type { Action, UiState } from '../ui/state';
 import { arcCandidates } from '../ui/arcs';
+import { radiusStep } from '../ui/steps';
 
 const MARGIN = 1; // cells around the grid: room for the ruler
 const ve = { 'vector-effect': 'non-scaling-stroke' } as Record<string, string>;
@@ -188,7 +189,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     } else if (drag?.kind === 'radius') {
       // Drag right to increase, left to decrease: one cell of drag is one cell of radius.
       // Snaps to 1/24 cell, or to the grid's sub-step with Shift.
-      const step = e.shiftKey ? LEN / sub : 10;
+      const step = radiusStep(sub, e.shiftKey);
       const r = Math.max(0, Math.round((drag.start + (q.x - drag.fromX) * LEN) / step) * step);
       dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: drag.ids, radius: r }, label: 'Radius', key: drag.key, at: performance.now() });
     } else if (drag?.kind === 'box') setDrag({ ...drag, to: q });
