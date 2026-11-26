@@ -121,6 +121,26 @@ describe('P6: recovery never leaves a cubic, and keeps the area of Paper’s res
       }),
     );
 
+  it('regression (fast-check seed 116460911): two arcs meeting tangentially share their exact tangent point', () => {
+    // Circles (5, 1) r 9/16 and (4, 1) r 7/16 touch at (4.4375, 1). Paper's approximations cross
+    // 0.0038 from there, which the old fixed sanity limit rejected, leaving one arc's end off its circle.
+    const a = outlineClosed([vec(5, 1), vec(2, 3), vec(2, 1)], [{ type: 'inward', r: 0.5625 }, { type: 'auto', r: 0 }, { type: 'auto', r: 0 }]).contour!;
+    const b = outlineClosed([vec(4, 1), vec(4, 3), vec(4, 1), vec(0, 4)], [{ type: 'auto', r: 0 }, { type: 'auto', r: 0 }, { type: 'auto', r: 0.4375 }, { type: 'auto', r: 0 }]).contour!;
+    const m = evaluateMark([shape('a', 'add', [a]), shape('b', 'add', [b])], engine);
+    expect(m.errors).toEqual([]);
+    let touches = 0;
+    for (const c of allContours(m.pieces)) {
+      const starts = segStarts(c);
+      c.segs.forEach((s, i) => {
+        if (s.kind !== 'A') return;
+        expect(Math.abs(len(sub(starts[i] as Vec2, s.centre)) - s.r)).toBeLessThan(1e-9);
+        expect(Math.abs(len(sub(s.to, s.centre)) - s.r)).toBeLessThan(1e-9);
+        if (len(sub(s.to, vec(4.4375, 1))) < 1e-9 || len(sub(starts[i] as Vec2, vec(4.4375, 1))) < 1e-9) touches++;
+      });
+    }
+    expect(touches).toBe(2); // the arc arriving at the tangent point and the arc leaving it
+  });
+
   it('every segment is a line or a source arc whose ends lie on its circle', () => {
     fc.assert(
       fc.property(fc.array(shapeArb, { minLength: 1, maxLength: 4 }), (specs) => {

@@ -123,6 +123,25 @@ export function crossing(a: Carrier, b: Carrier, near: Vec2): Vec2 | null {
   return nearest([add(foot, scale(line.d, h)), sub(foot, scale(line.d, h))]);
 }
 
+/** Unit tangent direction of a carrier at a point on it. */
+const tangentAt = (c: Carrier, q: Vec2): Vec2 => {
+  if (c.kind === 'line') return c.line.d;
+  const r = unit(sub(q, c.circle.centre));
+  return { x: -r.y, y: r.x };
+};
+
+/**
+ * How far Paper's corner may sit from the exact crossing. Two carriers meeting at angle θ, each off by
+ * δ, cross up to about δ / sin θ from the true point, so shallow crossings get a wider limit: 2e-3·s
+ * for a square crossing, growing as 1 / sin θ, capped at √(2e-3)·s, the along-tangent drift of two
+ * tangent carriers (s · √(2δ/s) with δ = 1e-3·s). Found by fast-check: two arcs tangent at (4.4375, 1)
+ * whose approximations crossed 0.0038 away, beyond the old fixed 2e-3 (DECISIONS.md).
+ */
+function crossingTol(a: Carrier, b: Carrier, at: Vec2, s: number): number {
+  const sin = Math.abs(cross(tangentAt(a, at), tangentAt(b, at)));
+  return Math.min((2e-3 * s) / Math.max(sin, 1e-12), Math.sqrt(2e-3) * s);
+}
+
 const sameCircle = (a: Circle, b: Circle) => Math.abs(a.r - b.r) < 1e-9 * Math.max(1, a.r) && len(sub(a.centre, b.centre)) < 1e-9 * Math.max(1, a.r);
 const sameLine = (a: Line, b: Line) => Math.abs(cross(a.d, b.d)) < 1e-9 && distToLine(b.p, a) < 1e-9;
 
@@ -198,7 +217,7 @@ export function recoverContourTagged(
     const exact = crossing(prev.carrier, m.carrier, m.from);
     // Sanity: an exact crossing must be near Paper's point (well within its approximation error).
     const scaleOf = m.carrier.kind === 'circle' ? m.carrier.circle.r : prev.carrier.kind === 'circle' ? prev.carrier.circle.r : 1;
-    if (exact && len(sub(exact, m.from)) <= 2e-3 * Math.max(1, scaleOf)) return exact;
+    if (exact && len(sub(exact, m.from)) <= crossingTol(prev.carrier, m.carrier, exact, Math.max(1, scaleOf))) return exact;
     // Same or concentric circles, or parallel lines: no single crossing.
     return onCircle(m.from, m.carrier, prev.carrier);
   });

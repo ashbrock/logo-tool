@@ -165,3 +165,7 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Fonts are self-hosted files in the repo**, Latin and Latin Extended only (about 110 KB in total), with their OFL licences. That's lighter than keeping font packages as dependencies, and nothing loads from a font CDN.
 - **Shortcut hints moved into tooltips on the two pinned rail buttons,** because Martian Mono is wider than Plex and "Export… ⌘E" wrapped.
 - **One typeface: Martian Mono everywhere** (designer's direction). The mark name and dialog titles drop Archivo Narrow (which had replaced the original serif) and use Martian Mono 600. Hierarchy comes from size and weight. One family also means one font download.
+
+## Test reliability
+
+- **Tangent crossings get a wider recovery tolerance.** A rare P6 failure (fast-check seed 116460911, about 1 in 1,600 cases) was two arcs touching tangentially: Paper's approximations crossed 0.0038 from the exact tangent point, the fixed 2e-3 sanity limit rejected it, and one arc's end was left off its circle. The limit now grows as 1 / sin θ of the crossing angle, capped at √(2e-3)·r, and the case is a fixed regression test.
