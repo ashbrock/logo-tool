@@ -5,7 +5,6 @@
  */
 import { useEffect, useMemo, useReducer, useRef } from 'preact/hooks';
 import paper from 'paper/dist/paper-core';
-import { lattice } from '../geometry/lattice';
 import { defaultGrid, type GridDef, type Subdivision } from '../grids';
 import { makePaperEngine } from '../boolean/paper-adapter';
 import { evaluateDocument } from '../pipeline/resolve';
@@ -13,6 +12,7 @@ import { emptyDocument, LEN, type LogoDocument, type Vertex } from '../model/typ
 import type { CornerType } from '../geometry/corners';
 import { parseProject, serialize } from '../persist/project';
 import { Canvas } from '../render/Canvas';
+import { EXAMPLES } from '../examples';
 import { initState, reducer, type UiState } from './state';
 
 const engine = makePaperEngine(paper as unknown as typeof import('paper'));
@@ -49,11 +49,11 @@ function selectedShapeIds(s: UiState): string[] {
 function hintFor(s: UiState): string {
   if (s.paperPreview) return 'Paper preview · \\ to return to the canvas';
   if (s.mode === 'place') {
-    if (s.placing) return 'Click to add a point · Click the first point to close · Enter ends here · Backspace removes the last point · Esc stops';
-    return 'Click a grid point to start a shape · Ctrl snaps to whole cells · V to adjust · ⌘Z undo';
+    if (s.placing) return 'Click to add a point · Click the first point (or C) to close as a shape · Enter keeps it as a line · Backspace removes the last point';
+    return 'Click a grid point to start a line · Ctrl snaps to whole cells · V to adjust · ⌘Z undo';
   }
   if (s.selection.length === 0) return 'Click a point · Drag to box-select · Shift adds · P to place points';
-  return 'R corner type · [ ] radius (Shift: one cell) · 0 removes rounding · Arrows nudge · 1 add · 2 cut · Delete removes';
+  return 'Drag the handle or [ ] for radius · R corner type · Arrows nudge · 1 add · 2 cut · Delete removes · P to draw';
 }
 
 export function App() {
@@ -87,6 +87,11 @@ export function App() {
       const run = (command: Parameters<typeof dispatch>[0]) => { e.preventDefault(); dispatch(command); };
       if (mod && k.toLowerCase() === 'z') return run({ type: e.shiftKey ? 'redo' : 'undo' });
       if (mod && k.toLowerCase() === 'y') return run({ type: 'redo' });
+      if (mod && k.toLowerCase() === 'a') {
+        // Select all points of the selected shape(s), or every point with Shift (SPEC.md §8).
+        const shapes = e.shiftKey || selectedShapeIds(state).length === 0 ? doc.shapes : doc.shapes.filter((sh) => selectedShapeIds(state).includes(sh.id));
+        return run({ type: 'select', ids: shapes.flatMap((sh) => sh.path.vertices.map((v) => v.id)) });
+      }
       if (mod) return;
       if (k === 'p' || k === 'P') return run({ type: 'mode', mode: 'place' });
       if (k === 'v' || k === 'V') return run({ type: 'mode', mode: 'adjust' });
@@ -97,11 +102,10 @@ export function App() {
       }
       if (state.mode === 'place' && state.placing) {
         if (k === 'Enter') {
-          // Finish here: an open path becomes a stroke (SPEC.md §6.3).
+          // Finish here as a line (drawing is stroke-first, SPEC.md §6.3).
           e.preventDefault();
           const sh = doc.shapes.find((x) => x.id === state.placing);
-          if (sh && sh.path.vertices.length >= 2) dispatch({ type: 'command', command: { type: 'setPaint', shapeId: sh.id, paint: { kind: 'stroke', width: LEN / 2, cap: 'round', join: 'round', endRadius: 0 } }, label: 'Finish as stroke' });
-          dispatch({ type: 'placing', shapeId: null });
+          dispatch({ type: 'finishPlacing', selectShape: !!sh && sh.path.vertices.length >= 2 });
           return;
         }
         if (k === 'Backspace') {
@@ -109,7 +113,12 @@ export function App() {
           const last = sh?.path.vertices[sh.path.vertices.length - 1];
           if (last) return run({ type: 'command', command: { type: 'deleteVertices', vertexIds: [last.id] }, label: 'Remove last point' });
         }
-        if (k === 'c' || k === 'C') return run({ type: 'command', command: { type: 'closeShape', shapeId: state.placing }, label: 'Close shape' });
+        if (k === 'c' || k === 'C') {
+          // C closes as a filled shape; Shift+C closes as a line (a ring).
+          e.preventDefault();
+          dispatch({ type: 'command', command: { type: 'closeShape', shapeId: state.placing, asFill: !e.shiftKey }, label: 'Close shape', finish: true });
+          return;
+        }
       }
       if (sel.length === 0) return;
       const ids = sel.map((v) => v.id);
@@ -162,6 +171,13 @@ export function App() {
     dispatch({ type: 'command', command: { type: 'setGrid', grid: { ...g, ...patch } as GridDef }, label: 'Grid' });
 
   const issues = evaluated.issues.filter((i) => i.kind === 'corner' && i.issue.kind !== 'degenerate');
+  // Line width: the selected line's width, else the width new lines will use.
+  const strokeShapes = doc.shapes.filter((sh) => shapeIds.includes(sh.id) && sh.paint.kind === 'stroke');
+  const currentWidth = strokeShapes[0]?.paint.kind === 'stroke' ? strokeShapes[0].paint.width : state.strokeWidth;
+  const setWidth = (w: number) => {
+    dispatch({ type: 'strokeWidth', value: w });
+    for (const sh of strokeShapes) if (sh.paint.kind === 'stroke') dispatch({ type: 'command', command: { type: 'setPaint', shapeId: sh.id, paint: { ...sh.paint, width: w } }, label: 'Line width' });
+  };
 
   return (
     <div class="app">
@@ -172,6 +188,20 @@ export function App() {
             <button type="button" class="btn" disabled={state.history.past.length === 0} onClick={() => dispatch({ type: 'undo' })} aria-label="Undo">Undo</button>
             <button type="button" class="btn" disabled={state.history.future.length === 0} onClick={() => dispatch({ type: 'redo' })} aria-label="Redo">Redo</button>
           </div>
+          <label class="field">Examples
+            <select id="examples" value="" onChange={(e) => {
+              const ex = EXAMPLES.find((x) => x.id === (e.target as HTMLSelectElement).value);
+              (e.target as HTMLSelectElement).value = '';
+              (e.target as HTMLSelectElement).blur();
+              if (!ex) return;
+              dispatch({ type: 'command', command: { type: 'replace', doc: ex.build() }, label: `Open ${ex.name}` });
+              dispatch({ type: 'mode', mode: 'adjust' });
+              dispatch({ type: 'status', text: `${ex.name}: ${ex.note} Undo to go back.` });
+            }}>
+              <option value="">Open an example…</option>
+              {EXAMPLES.map((x) => <option value={x.id}>{x.name}</option>)}
+            </select>
+          </label>
           {!initial.autosave ? <p class="note warn">Not autosaving in this browser.</p> : null}
         </header>
 
@@ -180,12 +210,12 @@ export function App() {
           <p class="value">Square · {g.kind === 'affine' ? `${g.width} × ${g.height}` : ''} · {g.subdivision === 1 ? 'whole cells' : `1/${g.subdivision} steps`}</p>
           <div class="row">
             <label class="field">Size
-              <select id="grid-size" value={g.kind === 'affine' ? g.width : 8} onChange={(e) => { const n = Number((e.target as HTMLSelectElement).value); setGrid({ width: n, height: n }); }}>
+              <select id="grid-size" value={g.kind === 'affine' ? g.width : 8} onChange={(e) => { const n = Number((e.target as HTMLSelectElement).value); setGrid({ width: n, height: n }); (e.target as HTMLSelectElement).blur(); }}>
                 {[4, 6, 8, 10, 12, 16].map((n) => <option value={n}>{n} × {n}</option>)}
               </select>
             </label>
             <label class="field">Steps
-              <select id="grid-sub" value={g.subdivision} onChange={(e) => setGrid({ subdivision: Number((e.target as HTMLSelectElement).value) as Subdivision })}>
+              <select id="grid-sub" value={g.subdivision} onChange={(e) => { setGrid({ subdivision: Number((e.target as HTMLSelectElement).value) as Subdivision }); (e.target as HTMLSelectElement).blur(); }}>
                 {[1, 2, 4, 8].map((n) => <option value={n}>{n === 1 ? 'whole' : `1/${n}`}</option>)}
               </select>
             </label>
@@ -222,12 +252,31 @@ export function App() {
         <section class="group" aria-labelledby="shape-label">
           <h2 class="label" id="shape-label">Shape</h2>
           {!firstShape ? <p class="note">Select a point to set its shape’s role.</p> : (
+            <>
+            <p class="value">{firstShape.paint.kind === 'stroke' ? `Line · width ${(firstShape.paint.width / LEN).toFixed(2)}` : 'Filled shape'}{shapeIds.length > 1 ? ` · ${shapeIds.length} shapes` : ''}</p>
+            {firstShape.repeat.kind !== 'none' ? <p class="note">{describeRepeat(firstShape.repeat)}</p> : null}
             <div class="seg" role="group" aria-label="Role">
               {(['add', 'cut', 'intersect'] as const).map((r, i) => (
                 <button type="button" aria-pressed={firstShape.role === r} aria-keyshortcuts={String(i + 1)} title={`${r} (${i + 1})`} onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRole', shapeId: id, role: r }, label: 'Role' }))}>{r}</button>
               ))}
             </div>
+            <div class="row radius">
+              <button type="button" class="btn" aria-label="Smaller joint radius" onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: Math.max(0, firstShape.jointRadius - 10) }, label: 'Joint radius' }))}>−</button>
+              <span class="value" title="Rounds the corners this shape creates where it meets others">joint {(firstShape.jointRadius / LEN).toFixed(2)}</span>
+              <button type="button" class="btn" aria-label="Larger joint radius" onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: firstShape.jointRadius + 10 }, label: 'Joint radius' }))}>+</button>
+            </div>
+            </>
           )}
+        </section>
+
+        <section class="group" aria-labelledby="line-label">
+          <h2 class="label" id="line-label">Line width</h2>
+          <div class="row radius">
+            <button type="button" class="btn" aria-label="Thinner line" onClick={() => setWidth(Math.max(30, currentWidth - 30))}>−</button>
+            <span class="value">{(currentWidth / LEN).toFixed(2)} cell</span>
+            <button type="button" class="btn" aria-label="Thicker line" onClick={() => setWidth(currentWidth + 30)}>+</button>
+          </div>
+          <p class="note">New paths draw as lines at this width. Closing one makes a filled shape.</p>
         </section>
 
         <section class="group" aria-labelledby="view-label">
@@ -253,6 +302,13 @@ export function App() {
   );
 }
 
+function describeRepeat(r: LogoDocument['shapes'][number]['repeat']): string {
+  if (r.kind === 'rotate') return `Repeats ×${r.count} around a centre${r.mirrored ? ', mirrored' : ''}`;
+  if (r.kind === 'translate') return `Repeats ×${r.count} along a line`;
+  if (r.kind === 'mirror') return 'Mirrored';
+  return '';
+}
+
 function fmtCell(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(3).replace(/0+$/, '');
 }
@@ -265,5 +321,3 @@ function describe(i: ReturnType<typeof evaluateDocument>['issues'][number]): str
   return 'This shape can’t be drawn yet.';
 }
 
-// Keep lattice imported for future keyboard placement.
-void lattice;

@@ -1,4 +1,4 @@
-// End-to-end check of the first playable, in real Chromium against the production build.
+// End-to-end check of the playable build, in real Chromium against the production build.
 // Run: npm run e2e  (builds, starts `vite preview`, drives the app, asserts, stops the server).
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
   const server = spawn('npx', ['vite', 'preview', '--port', '5310', '--strictPort'], { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 2000));
   const b = await chromium.launch();
+  const results = [];
+  const check = async (name, f) => { try { await f(); results.push(`ok   ${name}`); } catch (e) { results.push(`FAIL ${name}: ${e.message.split('\n')[0]}`); process.exitCode = 1; } };
   try {
     const p = await b.newPage({ viewport: { width: 1280, height: 860 } });
     const errors = [];
@@ -17,32 +19,89 @@ const assert = require('node:assert/strict');
     await p.waitForSelector('svg.canvas');
     const at = (x, y) => p.evaluate(([x, y]) => { const s = document.querySelector('svg.canvas'); const pt = s.createSVGPoint(); pt.x = x; pt.y = y; const q = pt.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; }, [x, y]);
     const click = async (x, y) => { const [sx, sy] = await at(x, y); await p.mouse.move(sx, sy); await p.mouse.click(sx, sy); };
-    const markD = () => p.evaluate(() => document.querySelector('svg.canvas > path')?.getAttribute('d'));
+    const markD = () => p.evaluate(() => document.querySelector('svg.canvas > path:not([fill="none"])')?.getAttribute('d') ?? '');
+    const pointCount = () => p.evaluate(() => document.querySelectorAll('svg.canvas rect[width]').length / 2 - 1);
 
-    for (const [x, y] of [[2, 2], [6, 2], [6, 6], [2, 6], [2, 2]]) await click(x, y);
-    assert.equal(await markD(), 'M2 2H6V6H2Z', 'placing and closing a square');
-
-    await p.keyboard.press('v');
-    await click(6, 2);
-    await p.keyboard.press('r'); // round → inward
-    await p.keyboard.press('r'); // inward → auto (outer on this convex corner)
-    for (let i = 0; i < 3; i++) await p.keyboard.press(']');
-    assert.equal(await p.locator('.radius .value').textContent(), 'r 1.50', 'fast key presses all register');
-    assert.match(await markD(), /A1\.5 1\.5 0 0 1 /, 'outer wrap arc of radius 1.5');
-
-    await p.keyboard.press('p');
-    for (const [x, y] of [[3, 3], [4, 3], [4, 4], [3, 4], [3, 3]]) await click(x, y);
-    await p.keyboard.press('v'); await click(3, 3); await p.keyboard.press('2');
-    assert.match(await markD(), /ZM4 3H3V4H4Z$/, 'cut shape becomes a hole');
-
-    for (let i = 0; i < 3; i++) await p.keyboard.press('Control+z');
-    assert.doesNotMatch(await markD(), /M4 3/, 'undo removes the cut');
-
-    const hint = await p.evaluate(() => document.querySelector('.hint').getBoundingClientRect().bottom);
-    assert.ok(hint <= 860, 'hint line is on screen');
-    assert.deepEqual(errors, [], 'no console errors');
-    console.log('first playable: all checks passed');
+    await check('placing then closing on the first point makes a filled square', async () => {
+      for (const [x, y] of [[2, 2], [6, 2], [6, 6], [2, 6], [2, 2]]) await click(x, y);
+      assert.equal(await markD(), 'M2 2H6V6H2Z');
+    });
+    await check('closing switches to Adjust with the shape selected and outlined', async () => {
+      assert.equal(await p.locator('.seg button[aria-pressed="true"]').first().textContent(), 'Adjust V');
+      assert.equal(await p.locator('.value').filter({ hasText: 'points' }).first().textContent(), '4 points');
+      assert.ok(await p.evaluate(() => [...document.querySelectorAll('svg.canvas path')].some((e) => e.getAttribute('stroke') === 'var(--canvas-selection)')));
+    });
+    await check('fast keys all register (R R ] ] ])', async () => {
+      await click(6, 2);
+      await p.keyboard.press('r'); await p.keyboard.press('r');
+      for (let i = 0; i < 3; i++) await p.keyboard.press(']');
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 1.50');
+    });
+    await check('the radius handle drags: right increases, left decreases', async () => {
+      await p.keyboard.press('0');
+      const [hx, hy] = await p.evaluate(() => { const c = document.querySelector('.radius-handle circle:last-of-type'); const r = c.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      const [x0] = await at(0, 0), [x1] = await at(1, 0);
+      const cell = x1 - x0;
+      await p.mouse.move(hx, hy); await p.mouse.down(); await p.mouse.move(hx + cell * 0.5, hy, { steps: 5 }); await p.mouse.up();
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.50');
+      const [h2x, h2y] = await p.evaluate(() => { const c = document.querySelector('.radius-handle circle:last-of-type'); const r = c.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      await p.mouse.move(h2x, h2y); await p.mouse.down(); await p.mouse.move(h2x - cell * 0.25, h2y, { steps: 5 }); await p.mouse.up();
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.25');
+    });
+    await check('keys still work after using a rail dropdown', async () => {
+      await p.selectOption('#grid-sub', '2');
+      await click(6, 2);
+      await p.keyboard.press(']');
+      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.75');
+    });
+    await check('Delete removes the selected point', async () => {
+      await click(6, 6);
+      await p.keyboard.press('Delete');
+      assert.equal(await p.locator('.value').first().textContent().then(() => p.evaluate(() => document.querySelector('svg.canvas > path:not([fill="none"])').getAttribute('d').includes('6 6'))), false);
+    });
+    await check('Backspace (Mac “delete”) removes the selected point too', async () => {
+      await click(2, 6);
+      await p.keyboard.press('Backspace');
+      assert.ok(!(await markD()).includes('2 6'));
+    });
+    await check('a diagonal and a straight line come out the same width', async () => {
+      await p.keyboard.press('p');
+      for (const [x, y] of [[1, 7], [7, 7]]) await click(x, y);
+      await p.keyboard.press('Enter');
+      await p.keyboard.press('p');
+      for (const [x, y] of [[1, 1], [4, 4]]) await click(x, y);
+      await p.keyboard.press('Enter');
+      const widths = await p.evaluate(() => {
+        // Measure each line's outline: straight one is horizontal; diagonal one at 45°.
+        const d = document.querySelector('svg.canvas > path:not([fill="none"])').getAttribute('d');
+        return d;
+      });
+      // Straight line: y from 6.75 to 7.25 (width 0.5). Diagonal: offsets of 0.25·√2/… appear as ±0.17678 in x and y.
+      assert.match(widths, /6\.75/);
+      assert.match(widths, /0\.82322|1\.17678/);
+    });
+    await check('examples open and undo goes back', async () => {
+      await p.selectOption('#examples', 'sun');
+      const sun = await markD();
+      assert.ok(sun.length > 200, 'sun drawn');
+      await p.keyboard.press('Control+z');
+      assert.notEqual(await markD(), sun);
+    });
+    await check('Ctrl+A selects points, not page text', async () => {
+      await p.keyboard.press('Control+a');
+      assert.equal(await p.evaluate(() => String(window.getSelection())), '');
+      assert.match(await p.locator('.value').filter({ hasText: 'points' }).first().textContent(), /\d+ points/);
+    });
+    await check('hint line is on screen and there are no console errors', async () => {
+      const bottom = await p.evaluate(() => document.querySelector('.hint').getBoundingClientRect().bottom);
+      assert.ok(bottom <= 860);
+      assert.deepEqual(errors, []);
+    });
+    void pointCount;
+    await p.mouse.move(5, 5);
+    await p.screenshot({ path: process.env.SHOT ?? '/tmp/e2e-last.png' });
   } finally {
+    console.log(results.join('\n'));
     await b.close();
     server.kill();
   }

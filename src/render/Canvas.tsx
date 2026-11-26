@@ -25,6 +25,7 @@ interface Props {
 
 type Drag =
   | { kind: 'move'; ids: string[]; anchor: Lattice; applied: { du: number; dv: number }; key: string }
+  | { kind: 'radius'; ids: string[]; start: number; fromX: number; key: string }
   | { kind: 'box'; from: Vec2; to: Vec2; additive: boolean };
 
 export function Canvas({ state, dispatch, mark, construction }: Props) {
@@ -79,25 +80,44 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     return best;
   };
   const placingShape = doc.shapes.find((s) => s.id === state.placing) ?? null;
+  const LEN = 240;
+  // The radius handle sits up and to the right of the last selected point (DESIGN.md §6.1).
+  const handleFor = (): { anchor: Vec2; at: Vec2; ids: string[]; r: number } | null => {
+    if (state.mode !== 'adjust' || state.paperPreview || state.selection.length === 0) return null;
+    const last = allVertices.find((x) => x.v.id === state.selection[state.selection.length - 1]);
+    if (!last) return null;
+    // A line's end points have no corner to round.
+    const path = last.shape.path;
+    if (last.shape.paint.kind === 'stroke' && !path.closed && (last.i === 0 || last.i === path.vertices.length - 1)) return null;
+    const anchor = P(last.v.at);
+    return { anchor, at: { x: anchor.x + px(26), y: anchor.y - px(26) }, ids: [...state.selection], r: typeof last.v.radius === 'number' ? last.v.radius : 0 };
+  };
+  const handle = handleFor();
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
+    // Working on the canvas takes keyboard focus back from the rail, so shortcuts work again.
+    (document.activeElement as HTMLElement | null)?.blur?.();
     const q = toCells(e);
     const at = snapTo(q, e.ctrlKey);
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     if (state.mode === 'place') {
       if (placingShape) {
         const first = placingShape.path.vertices[0]!;
-        const min = placingShape.paint.kind === 'fill' ? 3 : 2;
-        if (latticeEq(first.at, at) && placingShape.path.vertices.length >= min) {
-          dispatch({ type: 'command', command: { type: 'closeShape', shapeId: placingShape.id }, label: 'Close shape' });
-          dispatch({ type: 'placing', shapeId: null });
+        if (latticeEq(first.at, at) && placingShape.path.vertices.length >= 3) {
+          // Closing on the first point makes a filled shape, then switches to Adjust with it selected.
+          dispatch({ type: 'command', command: { type: 'closeShape', shapeId: placingShape.id, asFill: true }, label: 'Close shape', finish: true });
           return;
         }
         dispatch({ type: 'command', command: { type: 'appendPoint', shapeId: placingShape.id, at }, label: 'Place point', select: 'last-vertex' });
       } else {
-        dispatch({ type: 'command', command: { type: 'addShape', at }, label: 'Start shape', startPlacing: true, select: 'last-vertex' });
+        // Drawing is stroke-first: a new path is a line at the current width until it is closed.
+        dispatch({ type: 'command', command: { type: 'addShape', at, paint: 'stroke', width: state.strokeWidth }, label: 'Start shape', startPlacing: true, select: 'last-vertex' });
       }
+      return;
+    }
+    if (handle && Math.hypot(q.x - handle.at.x, q.y - handle.at.y) < px(10)) {
+      setDrag({ kind: 'radius', ids: handle.ids, start: handle.r, fromX: q.x, key: `radius-drag-${Date.now()}` });
       return;
     }
     const hit = hitVertex(q);
@@ -124,6 +144,12 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
         dispatch({ type: 'command', command: { type: 'moveVertices', vertexIds: drag.ids, du: step.du, dv: step.dv }, label: 'Move points', key: drag.key, at: performance.now() });
         setDrag({ ...drag, applied: { du, dv } });
       }
+    } else if (drag?.kind === 'radius') {
+      // Drag right to increase, left to decrease: one cell of drag is one cell of radius.
+      // Snaps to 1/24 cell, or to the grid's sub-step with Shift.
+      const step = e.shiftKey ? LEN / sub : 10;
+      const r = Math.max(0, Math.round((drag.start + (q.x - drag.fromX) * LEN) / step) * step);
+      dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: drag.ids, radius: r }, label: 'Radius', key: drag.key, at: performance.now() });
     } else if (drag?.kind === 'box') setDrag({ ...drag, to: q });
   };
 
@@ -180,16 +206,39 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
       </g>
     );
   }));
-  const placingPath = placingShape && placingShape.path.vertices.length > 0 ? (() => {
-    const pts = placingShape.path.vertices.map((v) => P(v.at));
-    const last = pts[pts.length - 1]!;
+  // While placing, the line drawn so far is part of the mark (a real stroke at its width); the next
+  // segment previews at the same width so diagonals and straights read the same.
+  const placingPath = placingShape && placingShape.path.vertices.length > 0 && snap && state.mode === 'place' ? (() => {
+    const last = P(placingShape.path.vertices[placingShape.path.vertices.length - 1]!.at);
+    const w = placingShape.paint.kind === 'stroke' ? placingShape.paint.width / LEN : 0;
     return (
       <g>
-        {pts.length > 1 ? <path d={`M${pts.map((p) => `${p.x} ${p.y}`).join('L')}`} fill="none" stroke="var(--canvas-active)" stroke-width={1.25} {...ve} /> : null}
-        {snap && state.mode === 'place' ? <line x1={last.x} y1={last.y} x2={P(snap).x} y2={P(snap).y} stroke="var(--canvas-active)" stroke-width={1.25} {...ve} /> : null}
+        {w > 0 ? <line x1={last.x} y1={last.y} x2={P(snap).x} y2={P(snap).y} stroke="var(--canvas-mark)" stroke-opacity={0.45} stroke-width={w} stroke-linecap="round" /> : null}
+        <line x1={last.x} y1={last.y} x2={P(snap).x} y2={P(snap).y} stroke="var(--canvas-active)" stroke-width={1.25} {...ve} />
       </g>
     );
   })() : null;
+  // The selected shape's own outline, so it can be told apart from shapes with the same fill (cut shapes too).
+  const selectedShapes = doc.shapes.filter((s) => s.path.vertices.some((v) => state.selection.includes(v.id)));
+  const selectedOutlines = paper ? null : selectedShapes.map((s) => {
+    const c = construction.find((x) => x.shapeId === s.id);
+    if (!c || c.contours.length === 0) return null;
+    const d = writePath([...c.contours], { scale: 1, precision: 5 });
+    return (
+      <g key={`selo${s.id}`}>
+        <path d={d} fill="none" stroke="var(--canvas-halo)" stroke-width={4} {...ve} />
+        <path d={d} fill="none" stroke="var(--canvas-selection)" stroke-width={1.5} {...ve} />
+      </g>
+    );
+  });
+  const radiusHandle = handle ? (
+    <g class="radius-handle">
+      <line x1={handle.anchor.x} y1={handle.anchor.y} x2={handle.at.x} y2={handle.at.y} stroke="var(--canvas-radius)" stroke-width={1} stroke-dasharray="2 2" {...ve} />
+      <circle cx={handle.at.x} cy={handle.at.y} r={px(6)} fill="var(--canvas-halo)" />
+      <circle cx={handle.at.x} cy={handle.at.y} r={px(5)} fill={drag?.kind === 'radius' ? 'var(--canvas-selection)' : 'var(--canvas-active)'} />
+      <text x={handle.at.x + px(10)} y={handle.at.y + px(4)} font-size={px(11)} fill="var(--canvas-active)" font-family="var(--font-mono)" paint-order="stroke" stroke="var(--canvas-halo)" stroke-width={px(3)}>r {(handle.r / LEN).toFixed(2)}</text>
+    </g>
+  ) : null;
 
   const half = px(3.5);
   const points = paper ? null : allVertices.map(({ shape, v, i }) => {
@@ -223,7 +272,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   return (
     <svg
       ref={svg}
-      class={`canvas mode-${state.mode}`}
+      class={`canvas mode-${state.mode}${drag?.kind === 'radius' ? ' dragging-radius' : ''}`}
       viewBox={`${-MARGIN} ${-MARGIN} ${W + 2 * MARGIN} ${H + 2 * MARGIN}`}
       preserveAspectRatio="xMidYMid meet"
       role="application"
@@ -238,7 +287,9 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
       {paper ? null : <g>{cutOutlines}</g>}
       <path d={markD} fill={paper ? doc.export.colour : 'var(--canvas-mark)'} />
       {paper ? null : <g>{invalid}{circles}{placingPath}</g>}
+      <g>{selectedOutlines}</g>
       <g>{points}</g>
+      {radiusHandle}
       {box}
       {snapMark}
     </svg>

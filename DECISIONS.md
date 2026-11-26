@@ -105,3 +105,12 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Keyboard handler reads live state through a ref** and is attached once. Driving the app showed that re-attaching it every render made fast key presses act on stale state (R, R, ], ], ] lost presses).
 - **New points start as 'round' (fillet).** R cycles round → inward → auto → outer. The classic fillet is the least surprising first rounding.
 - **GitHub Pages deployment** (`.github/workflows/pages.yml`): every push to `main` runs the unit tests, builds, and publishes `dist/` to https://ashbrock.github.io/logo-tool/. The build uses relative asset paths (`base: './'`), so the same output also works as a standalone page. Pages must be switched on once in the repo settings (Source: GitHub Actions). The session's GitHub proxy can't change that setting.
+
+## First feedback round (designer, first playable)
+
+- **Drawing is stroke-first.** The designer saw straight lines look thicker than diagonals. That's real geometry: a band between lattice points built as a fill is measured horizontally, so at 45° it is about 1/√2 as thick. New paths now draw as lines at a true constant width. Closing makes a filled shape, and Enter keeps the line. One tool gives both outcomes, with no separate line tool.
+- **Finishing a shape switches to Adjust with it selected,** so rounding and role changes are one keypress away. Closing and finishing are one step: two separate steps lost the shape reference in between (found by e2e).
+- **Radius drag handle:** right increases, left decreases, one cell of drag per cell of radius, snapping to 1/24 cell (Shift: sub-step). It's hidden on a line's end points.
+- **The selected shape is outlined** over a halo so it stands out on the shared bone fill (cut shapes especially).
+- **Delete:** both Delete and Backspace already worked, but keys were swallowed while a rail dropdown had focus. Canvas clicks now take focus back, and dropdowns blur after a choice. Ctrl/Cmd+A selects points instead of page text.
+- **Examples menu:** p-logo-1 and e-logo-3 (the designer's), plus the thunderbolt cut, the striped circle, the 8-fold sun, the plus with joint radius, and the arch (stroke + arc). They're built through commands and tested to evaluate cleanly.

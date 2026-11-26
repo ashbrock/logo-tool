@@ -128,9 +128,10 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 ### 6.3 Connect
 - **Line segments** are the default.
 - **Arc segment:** hold Alt while clicking the next point (Alt+Space with the keyboard). The tool offers only centres that are **lattice points the same distance from both ends**, nearest radius first. Tab cycles the candidates, and the preview shows the circle and the arc. If no candidate exists, the hint line says *"No lattice point is the same distance from both ends. This segment can only be straight."* and the click places a line.
-- **Close as fill:** click the shape's first point, or press C. A closed shape is filled by default.
+- **Drawing is stroke-first.** While you place points, the path is drawn as a line at the current **line width** (set in the rail), so diagonal and straight parts read at the same true width. A band built from grid points as a filled shape is measured horizontally, so at 45° it is only about 71% as thick as a straight band; strokes avoid this.
+- **Close as fill:** click the shape's first point, or press C. Closing turns the line into a filled shape, then switches to **Adjust** with the new shape's points selected, so R and `[ ]` work straight away. P returns to drawing.
 - **Circle:** a filled shape with a single point and a radius is a circle centred on that point. Press O in Place mode to start one, then use `[ ]` for its radius.
-- **Finish as stroke:** press Enter with an open path. Open paths are always strokes (default width 0.5 cell, round caps, round joins, end radius 0). Shift+C closes a path as a stroke (a ring).
+- **Finish as a line:** press Enter with an open path. It stays a stroke (default width 0.5 cell, round caps, round joins, end radius 0) and Adjust opens with its points selected. Shift+C closes a path as a stroke (a ring).
 - **Stroke corners and ends.** On a stroke, a point's radius rounds the **centre line**, giving concentric inner and outer arcs. The **end radius** (Shape section) softens the corners of butt and square ends.
 - Any shape can switch between fill and stroke with S. Switching an open path to fill closes it.
 
@@ -141,7 +142,7 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 4. Moving a point onto its neighbour merges them (§9.1).
 
 ### 6.5 Round a corner
-1. Select one or more points. Press `]` or `[` to change the radius by one sub-step (Shift: one cell), drag the radius control in the rail, or type a value. 0 removes rounding.
+1. Select one or more points. Drag the **radius handle** beside the last selected point (right to increase, left to decrease; one cell of drag is one cell of radius; snaps to 1/24 cell, or to the sub-step with Shift), press `]` or `[` to change the radius by one sub-step (Shift: one cell), or use the rail. 0 removes rounding. A line's end points have no corner, so they show no handle.
 2. The radius is always **drawn as a circle** (§7.4). Typed values snap to multiples of 1/240 of a cell.
 3. **Named radii:** "Save radius" in the Point section stores the current value as a named radius (e.g. `r1 = 0.30`). Points can use a named radius, and changing it updates them all. That's how a mark keeps one consistent radius (see e-logo-3).
 
@@ -206,7 +207,9 @@ At radius 0 all four types give a sharp corner exactly on the point.
 
 ### 7.2 Selecting
 - **Click a point:** select only that point. **Shift-click:** add it to or remove it from the selection.
-- **Click inside a shape's fill or stroke:** select the shape (all its points, plus the Shape section in the rail). With overlapping shapes, the one latest in evaluation order wins; Alt-click selects the next one below.
+- **Click inside a shape's fill or stroke:** select the shape (all its points, plus the Shape section in the rail).
+- **The selected shape is outlined** in the selection colour (over a dark halo), so it stands out even when every shape has the same fill — including cut shapes drawn on top of others.
+- Working on the canvas takes keyboard focus back from the rail, and rail dropdowns hand focus back after a choice, so shortcuts keep working. With overlapping shapes, the one latest in evaluation order wins; Alt-click selects the next one below.
 - **Drag on empty canvas:** box-select points inside the box, replacing the selection. **Shift-drag:** add to the selection. **Alt-drag:** remove from it.
 - **Click empty canvas or press Esc:** clear the selection.
 - **Tab / Shift+Tab** move to the next or previous point along the current shape. Cmd+A selects all points of the current shape, and Cmd+Shift+A selects all points.

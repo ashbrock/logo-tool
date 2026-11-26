@@ -139,7 +139,9 @@ Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are wri
 | Fillet circle (round) | 1.25 px solid + 3 px centre dot | `--canvas-radius` |
 | Arc centre | 7 px cross | `--canvas-radius` |
 | Cut / intersect outline | 1.25 px dashed 6 4 | `--canvas-cut` |
-| Selected shape outline | 1.5 px solid | `--canvas-selection` |
+| Selected shape outline | 1.5 px solid over a 4 px `--canvas-halo` | `--canvas-selection` |
+| Radius handle | 5 px dot in `--canvas-active` over a 6 px halo, 26 px up-right of the point, joined by a 1 px dashed `--canvas-radius` line; live "r 0.50" label in `--type-micro`; `--canvas-selection` while dragging | |
+| Line preview while placing | the next segment at the line width, `--canvas-mark` at 45% opacity, plus a 1.25 px `--canvas-active` centre line | |
 | Box-select | 1 px dashed 3 3, fill `--canvas-selection` at 6% | |
 | Repeat centre or axis | 1 px dash-dot 8 3 1 3 | `--canvas-axis` |
 

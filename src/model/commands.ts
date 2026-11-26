@@ -13,9 +13,9 @@ import { validateDocument } from './validate';
 export type ArcSpec = { readonly centre: Lattice; readonly sweep: 0 | 1 };
 
 export type Command =
-  | { type: 'addShape'; at: Lattice; paint?: 'fill' | 'stroke' }
+  | { type: 'addShape'; at: Lattice; paint?: 'fill' | 'stroke'; width?: Len240 }
   | { type: 'appendPoint'; shapeId: string; at: Lattice; arc?: ArcSpec }
-  | { type: 'closeShape'; shapeId: string; arc?: ArcSpec }
+  | { type: 'closeShape'; shapeId: string; arc?: ArcSpec; /** Close as a filled shape (drawing is stroke-first). */ asFill?: boolean }
   | { type: 'moveVertices'; vertexIds: string[]; du: number; dv: number }
   | { type: 'deleteVertices'; vertexIds: string[] }
   | { type: 'setCorner'; vertexIds: string[]; corner: CornerType }
@@ -99,7 +99,7 @@ function reduce(doc: LogoDocument, c: Command): LogoDocument | string {
       const [sid, d1] = withId(doc, 's'); const [vid, d2] = withId(d1, 'v');
       const shape: Shape = {
         id: sid, path: { vertices: [{ id: vid, at, corner: 'round', radius: 0 }], segments: [], closed: false },
-        paint: c.paint === 'stroke' ? DEFAULT_STROKE : { kind: 'fill' }, role: 'add', repeat: { kind: 'none' }, jointRadius: 0,
+        paint: c.paint === 'stroke' ? { ...DEFAULT_STROKE, ...(c.width ? { width: c.width } : {}) } as Paint : { kind: 'fill' }, role: 'add', repeat: { kind: 'none' }, jointRadius: 0,
       };
       return { ...d2, shapes: [...d2.shapes, shape] };
     }
@@ -120,11 +120,12 @@ function reduce(doc: LogoDocument, c: Command): LogoDocument | string {
       if (!s) return 'No such shape.';
       if (s.path.closed) return 'This shape is already closed.';
       const vs = s.path.vertices;
-      if (s.paint.kind === 'fill' && vs.length < 3) return 'A filled shape needs at least 3 points.';
+      const fill = c.asFill || s.paint.kind === 'fill';
+      if (fill && vs.length < 3) return 'A filled shape needs at least 3 points.';
       if (vs.length < 2) return 'A shape needs at least 2 points to close.';
       if (latticeEq(vs[0]!.at, vs[vs.length - 1]!.at)) return 'The last point is on the first point.';
       if (c.arc && !arcOk(g, vs[vs.length - 1]!.at, vs[0]!.at, c.arc)) return 'No lattice centre fits this arc.';
-      return mapShape(doc, s.id, (x) => ({ ...x, path: { ...x.path, closed: true, segments: [...x.path.segments, c.arc ? { kind: 'arc', ...c.arc } : { kind: 'line' }] } }))!;
+      return mapShape(doc, s.id, (x) => ({ ...x, ...(c.asFill ? { paint: { kind: 'fill' } as const } : {}), path: { ...x.path, closed: true, segments: [...x.path.segments, c.arc ? { kind: 'arc', ...c.arc } : { kind: 'line' }] } }))!;
     }
     case 'moveVertices': {
       if (!Number.isInteger(c.du) || !Number.isInteger(c.dv)) return 'Moves are in whole sub-steps.';
