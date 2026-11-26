@@ -8,7 +8,8 @@ import paper from 'paper/dist/paper-core';
 import { defaultGrid, type GridDef, type Subdivision } from '../grids';
 import { makePaperEngine } from '../boolean/paper-adapter';
 import { evaluateDocument } from '../pipeline/resolve';
-import { emptyDocument, LEN, type LogoDocument, type Vertex } from '../model/types';
+import { emptyDocument, LEN, type LogoDocument, type Repeat, type Vertex } from '../model/types';
+import { lattice } from '../geometry/lattice';
 import type { CornerType } from '../geometry/corners';
 import { parseProject, serialize } from '../persist/project';
 import { Canvas } from '../render/Canvas';
@@ -49,7 +50,12 @@ function selectedShapeIds(s: UiState): string[] {
 function hintFor(s: UiState): string {
   if (s.paperPreview) return 'Paper preview · \\ to return to the canvas';
   if (s.mode === 'place') {
-    if (s.placing) return 'Click to add a point · Click the first point (or C) to close as a shape · Enter keeps it as a line · Backspace removes the last point';
+    if (s.placing && s.arcPreview) {
+      return s.arcPreview.count === 0
+        ? 'Arc: no lattice point is the same distance from both ends, so this segment would be straight · A for lines'
+        : `Arc: centre ${s.arcPreview.index + 1} of ${s.arcPreview.count} · Tab next, Shift+Tab previous · click to place · A for lines`;
+    }
+    if (s.placing) return 'Click to add a point · A for arcs (or Alt-click) · Click the first point (or C) to close as a shape · Enter keeps it as a line';
     return 'Click a grid point to start a line · Ctrl snaps to whole cells · V to adjust · ⌘Z undo';
   }
   if (s.selection.length === 0) return 'Click a point · Drag to box-select · Shift adds · P to place points';
@@ -108,6 +114,8 @@ export function App() {
           dispatch({ type: 'finishPlacing', selectShape: !!sh && sh.path.vertices.length >= 2 });
           return;
         }
+        if (k === 'a' || k === 'A') return run({ type: 'arcArm' });
+        if (k === 'Tab' && state.arcPreview) return run({ type: 'arcCycle', delta: e.shiftKey ? -1 : 1 });
         if (k === 'Backspace') {
           const sh = doc.shapes.find((x) => x.id === state.placing);
           const last = sh?.path.vertices[sh.path.vertices.length - 1];
@@ -254,12 +262,12 @@ export function App() {
           {!firstShape ? <p class="note">Select a point to set its shape’s role.</p> : (
             <>
             <p class="value">{firstShape.paint.kind === 'stroke' ? `Line · width ${(firstShape.paint.width / LEN).toFixed(2)}` : 'Filled shape'}{shapeIds.length > 1 ? ` · ${shapeIds.length} shapes` : ''}</p>
-            {firstShape.repeat.kind !== 'none' ? <p class="note">{describeRepeat(firstShape.repeat)}</p> : null}
             <div class="seg" role="group" aria-label="Role">
               {(['add', 'cut', 'intersect'] as const).map((r, i) => (
                 <button type="button" aria-pressed={firstShape.role === r} aria-keyshortcuts={String(i + 1)} title={`${r} (${i + 1})`} onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRole', shapeId: id, role: r }, label: 'Role' }))}>{r}</button>
               ))}
             </div>
+            <RepeatControls repeat={firstShape.repeat} sub={g.subdivision} centre={gridCentre(g)} onChange={(repeat) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRepeat', shapeId: id, repeat }, label: 'Repeat' }))} />
             <div class="row radius">
               <button type="button" class="btn" aria-label="Smaller joint radius" onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: Math.max(0, firstShape.jointRadius - 10) }, label: 'Joint radius' }))}>−</button>
               <span class="value" title="Rounds the corners this shape creates where it meets others">joint {(firstShape.jointRadius / LEN).toFixed(2)}</span>
@@ -298,6 +306,60 @@ export function App() {
         </div>
         <p class={`hint ${showStatus?.tone === 'error' ? 'error' : ''}`} aria-live="polite">{showStatus ? showStatus.text : hintFor(state)}</p>
       </main>
+    </div>
+  );
+}
+
+/** The lattice point nearest the grid's centre: the default repeat centre and mirror axis. */
+function gridCentre(g: GridDef) {
+  const w = g.kind === 'affine' ? g.width : 0, h = g.kind === 'affine' ? g.height : 0;
+  return lattice(Math.round((w * g.subdivision) / 2), Math.round((h * g.subdivision) / 2));
+}
+
+function RepeatControls({ repeat, sub, centre, onChange }: { repeat: Repeat; sub: number; centre: ReturnType<typeof gridCentre>; onChange: (r: Repeat) => void }) {
+  const kinds = [['none', 'Off'], ['rotate', 'Rotate'], ['mirror', 'Mirror'], ['translate', 'Line']] as const;
+  const start = (k: Repeat['kind']): Repeat =>
+    k === 'rotate' ? { kind: 'rotate', centre, count: 4, mirrored: false }
+      : k === 'mirror' ? { kind: 'mirror', through: centre, to: lattice(centre.u, centre.v + sub) }
+        : k === 'translate' ? { kind: 'translate', step: lattice(sub, 0), count: 3 }
+          : { kind: 'none' };
+  const count = (n: number) => Math.max(2, Math.min(360, n));
+  return (
+    <div class="repeat">
+      <span class="label">Repeat</span>
+      <div class="seg" role="group" aria-label="Repeat">
+        {kinds.map(([k, label]) => <button type="button" aria-pressed={repeat.kind === k} onClick={() => repeat.kind !== k && onChange(start(k))}>{label}</button>)}
+      </div>
+      {repeat.kind === 'rotate' ? (
+        <div class="row radius">
+          <button type="button" class="btn" aria-label="Fewer copies" onClick={() => onChange({ ...repeat, count: count(repeat.count - 1) })}>−</button>
+          <span class="value">×{repeat.count}</span>
+          <button type="button" class="btn" aria-label="More copies" onClick={() => onChange({ ...repeat, count: count(repeat.count + 1) })}>+</button>
+          <button type="button" class="btn" aria-pressed={repeat.mirrored} onClick={() => onChange({ ...repeat, mirrored: !repeat.mirrored })}>Mirror</button>
+        </div>
+      ) : null}
+      {repeat.kind === 'mirror' ? (
+        <div class="seg" role="group" aria-label="Mirror axis">
+          <button type="button" aria-pressed={repeat.to.u === repeat.through.u} onClick={() => onChange({ kind: 'mirror', through: centre, to: lattice(centre.u, centre.v + sub) })}>Vertical</button>
+          <button type="button" aria-pressed={repeat.to.v === repeat.through.v} onClick={() => onChange({ kind: 'mirror', through: centre, to: lattice(centre.u + sub, centre.v) })}>Horizontal</button>
+        </div>
+      ) : null}
+      {repeat.kind === 'translate' ? (
+        <>
+          <div class="row radius">
+            <button type="button" class="btn" aria-label="Fewer copies" onClick={() => onChange({ ...repeat, count: count(repeat.count - 1) })}>−</button>
+            <span class="value">×{repeat.count}</span>
+            <button type="button" class="btn" aria-label="More copies" onClick={() => onChange({ ...repeat, count: count(repeat.count + 1) })}>+</button>
+          </div>
+          {(['u', 'v'] as const).map((axis) => (
+            <div class="row radius">
+              <button type="button" class="btn" aria-label={`Step ${axis === 'u' ? 'left' : 'up'}`} onClick={() => { const s = { ...repeat.step, [axis]: repeat.step[axis] - 1 }; if (s.u !== 0 || s.v !== 0) onChange({ ...repeat, step: lattice(s.u, s.v) }); }}>−</button>
+              <span class="value">{axis === 'u' ? 'step x' : 'step y'} {(repeat.step[axis] / sub).toFixed(2)}</span>
+              <button type="button" class="btn" aria-label={`Step ${axis === 'u' ? 'right' : 'down'}`} onClick={() => { const s = { ...repeat.step, [axis]: repeat.step[axis] + 1 }; if (s.u !== 0 || s.v !== 0) onChange({ ...repeat, step: lattice(s.u, s.v) }); }}>+</button>
+            </div>
+          ))}
+        </>
+      ) : null}
     </div>
   );
 }

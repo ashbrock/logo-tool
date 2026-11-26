@@ -114,3 +114,10 @@ One or two lines per significant decision, with the reason. Newest last.
 - **The selected shape is outlined** over a halo so it stands out on the shared bone fill (cut shapes especially).
 - **Delete:** both Delete and Backspace already worked, but keys were swallowed while a rail dropdown had focus. Canvas clicks now take focus back, and dropdowns blur after a choice. Ctrl/Cmd+A selects points instead of page text.
 - **Examples menu:** p-logo-1 and e-logo-3 (the designer's), plus the thunderbolt cut, the striped circle, the 8-fold sun, the plus with joint radius, and the arch (stroke + arc). They're built through commands and tested to evaluate cleanly.
+
+## Second feedback round
+
+- **Radius handle sits on the selection ring** (right-hand side, 12 px out), so it reads as part of the point, not a separate widget.
+- **New lines start at the minimum width (1/8 cell).** The 1/2-cell default read as chunky; widening is one click.
+- **Arcs while drawing: A arms arc mode, Tab cycles centres.** Alt-hold can't preview because Alt+Tab is the operating system's. Only lattice points exactly equidistant from both ends are offered, nearest first, so every arc is a true grid arc.
+- **Repeat controls in the rail** (rotate ×n with optional mirror, mirror, along a line). For now the centre and axes are the lattice point nearest the grid centre; picking the centre on the canvas is a later step.

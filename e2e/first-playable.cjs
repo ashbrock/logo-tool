@@ -76,9 +76,10 @@ const assert = require('node:assert/strict');
         const d = document.querySelector('svg.canvas > path:not([fill="none"])').getAttribute('d');
         return d;
       });
-      // Straight line: y from 6.75 to 7.25 (width 0.5). Diagonal: offsets of 0.25·√2/… appear as ±0.17678 in x and y.
-      assert.match(widths, /6\.75/);
-      assert.match(widths, /0\.82322|1\.17678/);
+      // Width 1/8 cell. Straight: y from 6.9375 to 7.0625. Diagonal (45°): offsets of 0.0625/√2 ≈ 0.04419 in x and y,
+      // so both are 0.125 wide measured perpendicular to the line.
+      assert.match(widths, /6\.9375/);
+      assert.match(widths, /1\.04419|0\.95581/);
     });
     await check('examples open and undo goes back', async () => {
       await p.selectOption('#examples', 'sun');
@@ -86,6 +87,36 @@ const assert = require('node:assert/strict');
       assert.ok(sun.length > 200, 'sun drawn');
       await p.keyboard.press('Control+z');
       assert.notEqual(await markD(), sun);
+    });
+    await check('new lines start at the thinnest width (1/8 cell)', async () => {
+      assert.match(await p.locator('.group', { hasText: 'Line width' }).locator('.value').textContent(), /0\.13 cell|0\.125 cell/);
+    });
+    await check('A arms arcs; Tab cycles centres; clicking places a true arc', async () => {
+      await p.selectOption('#examples', 'plus'); // start from a known document
+      await p.keyboard.press('Control+z');
+      await p.locator('button', { hasText: 'Clear mark' }).click();
+      await p.keyboard.press('p');
+      await click(1, 6);
+      await p.keyboard.press('a');
+      const [sx, sy] = await at(5, 6); await p.mouse.move(sx, sy);
+      await p.waitForFunction(() => /Arc: centre 1 of \d+/.test(document.querySelector('.hint').textContent));
+      await p.keyboard.press('Tab');
+      await p.waitForFunction(() => /Arc: centre 2 of/.test(document.querySelector('.hint').textContent));
+      await p.keyboard.press('Shift+Tab');
+      await p.mouse.click(sx, sy);
+      await p.keyboard.press('Enter');
+      assert.match(await markD(), /A/, 'the mark contains an arc');
+    });
+    await check('Rotate repeats a shape around the grid centre, and + adds copies', async () => {
+      await p.keyboard.press('p');
+      for (const [x, y] of [[4, 1], [5, 1], [5, 2], [4, 2], [4, 1]]) await click(x, y);
+      const before = await markD();
+      await p.locator('.repeat button', { hasText: 'Rotate' }).click();
+      const four = await markD();
+      assert.ok(four.length > before.length + 40, 'copies drawn');
+      await p.locator('.repeat button[aria-label="More copies"]').click();
+      assert.equal(await p.locator('.repeat .value').first().textContent(), '×5');
+      assert.ok((await markD()).length > four.length, 'a fifth copy');
     });
     await check('Ctrl+A selects points, not page text', async () => {
       await p.keyboard.press('Control+a');

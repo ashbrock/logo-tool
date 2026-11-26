@@ -127,11 +127,11 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 
 ### 6.3 Connect
 - **Line segments** are the default.
-- **Arc segment:** hold Alt while clicking the next point (Alt+Space with the keyboard). The tool offers only centres that are **lattice points the same distance from both ends**, nearest radius first. Tab cycles the candidates, and the preview shows the circle and the arc. If no candidate exists, the hint line says *"No lattice point is the same distance from both ends. This segment can only be straight."* and the click places a line.
+- **Arc segment:** press A while placing to arm arcs (A again, or Esc, returns to lines), or hold Alt while clicking the next point (Alt+Space with the keyboard). A stays armed for the following segments. Alt alone can't be used to preview, because Alt+Tab belongs to the operating system. The tool offers only centres that are **lattice points the same distance from both ends**, nearest radius first. Tab and Shift+Tab cycle the candidates, and the preview shows the circle and the arc. If no candidate exists, the hint line says *"No lattice point is the same distance from both ends. This segment can only be straight."* and the click places a line.
 - **Drawing is stroke-first.** While you place points, the path is drawn as a line at the current **line width** (set in the rail), so diagonal and straight parts read at the same true width. A band built from grid points as a filled shape is measured horizontally, so at 45° it is only about 71% as thick as a straight band; strokes avoid this.
 - **Close as fill:** click the shape's first point, or press C. Closing turns the line into a filled shape, then switches to **Adjust** with the new shape's points selected, so R and `[ ]` work straight away. P returns to drawing.
 - **Circle:** a filled shape with a single point and a radius is a circle centred on that point. Press O in Place mode to start one, then use `[ ]` for its radius.
-- **Finish as a line:** press Enter with an open path. It stays a stroke (default width 0.5 cell, round caps, round joins, end radius 0) and Adjust opens with its points selected. Shift+C closes a path as a stroke (a ring).
+- **Finish as a line:** press Enter with an open path. It stays a stroke (default width 1/8 cell, the minimum, round caps, round joins, end radius 0) and Adjust opens with its points selected. Shift+C closes a path as a stroke (a ring).
 - **Stroke corners and ends.** On a stroke, a point's radius rounds the **centre line**, giving concentric inner and outer arcs. The **end radius** (Shape section) softens the corners of butt and square ends.
 - Any shape can switch between fill and stroke with S. Switching an open path to fill closes it.
 
@@ -142,7 +142,7 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 4. Moving a point onto its neighbour merges them (§9.1).
 
 ### 6.5 Round a corner
-1. Select one or more points. Drag the **radius handle** beside the last selected point (right to increase, left to decrease; one cell of drag is one cell of radius; snaps to 1/24 cell, or to the sub-step with Shift), press `]` or `[` to change the radius by one sub-step (Shift: one cell), or use the rail. 0 removes rounding. A line's end points have no corner, so they show no handle.
+1. Select one or more points. Drag the **radius handle** on the right of the last selected point's selection ring (right to increase, left to decrease; one cell of drag is one cell of radius; snaps to 1/24 cell, or to the sub-step with Shift), press `]` or `[` to change the radius by one sub-step (Shift: one cell), or use the rail. 0 removes rounding. A line's end points have no corner, so they show no handle.
 2. The radius is always **drawn as a circle** (§7.4). Typed values snap to multiples of 1/240 of a cell.
 3. **Named radii:** "Save radius" in the Point section stores the current value as a named radius (e.g. `r1 = 0.30`). Points can use a named radius, and changing it updates them all. That's how a mark keeps one consistent radius (see e-logo-3).
 
@@ -179,7 +179,7 @@ At radius 0 all four types give a sharp corner exactly on the point.
   - **mirror** in a line through a lattice point
   - **along a line ×n** by a lattice step
 
-  The centre, axis or step shows on the canvas while the shape is selected.
+  The centre, axis or step shows on the canvas while the shape is selected. In this build the rail sets the type, count, mirror and step, and the centre and mirror axes are the lattice point nearest the grid centre. Choosing the centre by clicking comes later.
 - Repeats are **live**: you edit the source shape, and the copies are derived from it exactly each time. Copies aren't stored points, so they don't have to land on lattice points. An 8-fold repeat on a square grid is allowed. Copies at angles the grid doesn't share export with 3-decimal coordinates.
 - Copies take part in merge, cut and intersect exactly like their source, in the source's place in the evaluation order. Their points can't be selected, and clicking a copy selects its source.
 - **Detach** turns copies into ordinary shapes. It's only offered when every copy's points land on lattice points (for example a 4-fold repeat on a square grid). Otherwise it's disabled, and its tooltip says why.
@@ -258,7 +258,9 @@ Cmd means Ctrl on Windows and Linux. All shortcuts are listed in a sheet opened 
 |---|---|
 | Click / Space | Place point at snap preview / lattice cursor |
 | Arrows / Shift+arrows | Move lattice cursor one sub-step / one cell |
-| Alt+click / Alt+Space | Place with an arc segment. Tab cycles the arc centre. |
+| A | Arm / disarm arc segments for the next points |
+| Alt+click / Alt+Space | Place with an arc segment |
+| Tab / Shift+Tab (arc shown) | Next / previous arc centre |
 | C / click first point | Close as fill |
 | Shift+C | Close as stroke |
 | Enter | Finish open path as stroke |
@@ -300,7 +302,7 @@ Cmd means Ctrl on Windows and Linux. All shortcuts are listed in a sheet opened 
 | State | Hint line |
 |---|---|
 | Place, nothing started | Click a grid point to start · Alt-click for an arc · ? shortcuts |
-| Place, placing | Click to add · Alt-click arc · C closes as fill · Enter ends as stroke · Backspace undoes last |
+| Place, placing | Click to add · A arc · C closes as fill · Enter ends as stroke · Backspace undoes last |
 | Place, arc candidate shown | Tab next centre (2 of 3) · Click to place arc · Esc straight line |
 | Adjust, nothing selected | Click a point · Drag to box-select · Shift adds · Tab steps through points |
 | Adjust, points selected | R corner type · [ ] radius · Arrows nudge · Delete removes |

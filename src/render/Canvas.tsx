@@ -3,7 +3,7 @@
  * (no easing) with a small hysteresis so the preview doesn't flicker on cell boundaries. Strokes are
  * non-scaling; marker sizes are DESIGN.md screen pixels converted to cells.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Dispatch } from 'preact/hooks';
 import { latticeEq, type Lattice } from '../geometry/lattice';
 import type { Vec2 } from '../geometry/num';
@@ -12,6 +12,7 @@ import { writePath } from '../export/write-path';
 import type { Mark } from '../pipeline/evaluate';
 import type { ShapeConstruction } from '../pipeline/resolve';
 import type { Action, UiState } from '../ui/state';
+import { arcCandidates } from '../ui/arcs';
 
 const MARGIN = 1; // cells around the grid: room for the ruler
 const ve = { 'vector-effect': 'non-scaling-stroke' } as Record<string, string>;
@@ -36,6 +37,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   const [pxPerCell, setPx] = useState(48);
   const [snap, setSnap] = useState<Lattice | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [altHeld, setAlt] = useState(false);
 
   useEffect(() => {
     const el = svg.current;
@@ -80,8 +82,16 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     return best;
   };
   const placingShape = doc.shapes.find((s) => s.id === state.placing) ?? null;
+  // Arc candidates for the next segment, while arc mode is armed or Alt is held (SPEC.md §6.3).
+  const lastPlaced = placingShape?.path.vertices[placingShape.path.vertices.length - 1] ?? null;
+  const arcOn = state.mode === 'place' && !!placingShape && (state.arcArmed || altHeld);
+  const candidates = useMemo(() => (arcOn && lastPlaced && snap ? arcCandidates(g, lastPlaced.at, snap) : []), [arcOn, lastPlaced, snap, g]);
+  const chosenArc = candidates.length ? candidates[((state.arcIndex % candidates.length) + candidates.length) % candidates.length]! : null;
+  useEffect(() => {
+    dispatch({ type: 'arcPreview', value: arcOn && snap && lastPlaced && !latticeEq(snap, lastPlaced.at) ? { count: candidates.length, index: candidates.length ? ((state.arcIndex % candidates.length) + candidates.length) % candidates.length : 0 } : null });
+  }, [arcOn, candidates, state.arcIndex]);
   const LEN = 240;
-  // The radius handle sits up and to the right of the last selected point (DESIGN.md §6.1).
+  // The radius handle sits on the last selected point's selection ring, at its right (DESIGN.md §6.1).
   const handleFor = (): { anchor: Vec2; at: Vec2; ids: string[]; r: number } | null => {
     if (state.mode !== 'adjust' || state.paperPreview || state.selection.length === 0) return null;
     const last = allVertices.find((x) => x.v.id === state.selection[state.selection.length - 1]);
@@ -90,7 +100,8 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     const path = last.shape.path;
     if (last.shape.paint.kind === 'stroke' && !path.closed && (last.i === 0 || last.i === path.vertices.length - 1)) return null;
     const anchor = P(last.v.at);
-    return { anchor, at: { x: anchor.x + px(26), y: anchor.y - px(26) }, ids: [...state.selection], r: typeof last.v.radius === 'number' ? last.v.radius : 0 };
+    // On the white selection ring (12 px), at its right-hand side.
+    return { anchor, at: { x: anchor.x + px(12), y: anchor.y }, ids: [...state.selection], r: typeof last.v.radius === 'number' ? last.v.radius : 0 };
   };
   const handle = handleFor();
 
@@ -104,19 +115,23 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     if (state.mode === 'place') {
       if (placingShape) {
         const first = placingShape.path.vertices[0]!;
-        if (latticeEq(first.at, at) && placingShape.path.vertices.length >= 3) {
+        const wantArc = state.arcArmed || e.altKey;
+        const arc = wantArc && chosenArc ? { centre: chosenArc.centre, sweep: chosenArc.sweep } : undefined;
+        if (wantArc && !chosenArc) dispatch({ type: 'status', text: 'No lattice point is the same distance from both ends. This segment is straight.' });
+        if (latticeEq(first.at, at) && placingShape.path.vertices.length >= (arc ? 2 : 3)) {
           // Closing on the first point makes a filled shape, then switches to Adjust with it selected.
-          dispatch({ type: 'command', command: { type: 'closeShape', shapeId: placingShape.id, asFill: true }, label: 'Close shape', finish: true });
+          dispatch({ type: 'command', command: { type: 'closeShape', shapeId: placingShape.id, asFill: true, ...(arc ? { arc } : {}) }, label: 'Close shape', finish: true });
+          dispatch({ type: 'arcArm', on: false });
           return;
         }
-        dispatch({ type: 'command', command: { type: 'appendPoint', shapeId: placingShape.id, at }, label: 'Place point', select: 'last-vertex' });
+        dispatch({ type: 'command', command: { type: 'appendPoint', shapeId: placingShape.id, at, ...(arc ? { arc } : {}) }, label: arc ? 'Place arc' : 'Place point', select: 'last-vertex' });
       } else {
         // Drawing is stroke-first: a new path is a line at the current width until it is closed.
         dispatch({ type: 'command', command: { type: 'addShape', at, paint: 'stroke', width: state.strokeWidth }, label: 'Start shape', startPlacing: true, select: 'last-vertex' });
       }
       return;
     }
-    if (handle && Math.hypot(q.x - handle.at.x, q.y - handle.at.y) < px(10)) {
+    if (handle && Math.hypot(q.x - handle.at.x, q.y - handle.at.y) < px(7)) {
       setDrag({ kind: 'radius', ids: handle.ids, start: handle.r, fromX: q.x, key: `radius-drag-${Date.now()}` });
       return;
     }
@@ -134,6 +149,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   };
 
   const onPointerMove = (e: PointerEvent) => {
+    if (e.altKey !== altHeld) setAlt(e.altKey);
     const q = toCells(e);
     const at = snapTo(q, e.ctrlKey);
     if (!snap || !latticeEq(at, snap)) setSnap(at);
@@ -211,10 +227,25 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   const placingPath = placingShape && placingShape.path.vertices.length > 0 && snap && state.mode === 'place' ? (() => {
     const last = P(placingShape.path.vertices[placingShape.path.vertices.length - 1]!.at);
     const w = placingShape.paint.kind === 'stroke' ? placingShape.paint.width / LEN : 0;
+    const to = P(snap);
+    if (chosenArc) {
+      const c = P(chosenArc.centre), r = chosenArc.r;
+      const d = `M${last.x} ${last.y}A${r} ${r} 0 ${chosenArc.turn > Math.PI ? 1 : 0} ${chosenArc.sweep} ${to.x} ${to.y}`;
+      const k = px(7);
+      return (
+        <g>
+          <circle cx={c.x} cy={c.y} r={r} fill="none" stroke="var(--canvas-active)" stroke-width={1} stroke-dasharray="4 3" {...ve} />
+          <path d={`M${c.x - k} ${c.y}H${c.x + k}M${c.x} ${c.y - k}V${c.y + k}`} stroke="var(--canvas-radius)" stroke-width={1.25} {...ve} />
+          {w > 0 ? <path d={d} fill="none" stroke="var(--canvas-mark)" stroke-opacity={0.45} stroke-width={w} stroke-linecap="round" /> : null}
+          <path d={d} fill="none" stroke="var(--canvas-active)" stroke-width={1.25} {...ve} />
+        </g>
+      );
+    }
+    const dashed = arcOn ? '6 4' : undefined; // arc wanted but impossible here: preview straight, dashed
     return (
       <g>
-        {w > 0 ? <line x1={last.x} y1={last.y} x2={P(snap).x} y2={P(snap).y} stroke="var(--canvas-mark)" stroke-opacity={0.45} stroke-width={w} stroke-linecap="round" /> : null}
-        <line x1={last.x} y1={last.y} x2={P(snap).x} y2={P(snap).y} stroke="var(--canvas-active)" stroke-width={1.25} {...ve} />
+        {w > 0 ? <line x1={last.x} y1={last.y} x2={to.x} y2={to.y} stroke="var(--canvas-mark)" stroke-opacity={0.45} stroke-width={w} stroke-linecap="round" /> : null}
+        <line x1={last.x} y1={last.y} x2={to.x} y2={to.y} stroke={arcOn ? 'var(--canvas-invalid)' : 'var(--canvas-active)'} stroke-dasharray={dashed} stroke-width={1.25} {...ve} />
       </g>
     );
   })() : null;
@@ -231,12 +262,37 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
       </g>
     );
   });
+  // Repeat guides for the selected shape (DESIGN.md §4: repeat centre or axis, dash-dot).
+  const repeatGuides = paper ? null : selectedShapes.map((sh) => {
+    const r = sh.repeat;
+    const dash = '8 3 1 3';
+    if (r.kind === 'rotate') {
+      const c = P(r.centre), k = px(8);
+      return (
+        <g key={`rep${sh.id}`}>
+          <circle cx={c.x} cy={c.y} r={px(16)} fill="none" stroke="var(--canvas-axis)" stroke-width={1} stroke-dasharray={dash} {...ve} />
+          <path d={`M${c.x - k} ${c.y}H${c.x + k}M${c.x} ${c.y - k}V${c.y + k}`} stroke="var(--canvas-axis)" stroke-width={1.25} {...ve} />
+        </g>
+      );
+    }
+    if (r.kind === 'mirror') {
+      const a = P(r.through), b = P(r.to);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy), L = W + H;
+      return <line key={`rep${sh.id}`} x1={a.x - (dx / l) * L} y1={a.y - (dy / l) * L} x2={a.x + (dx / l) * L} y2={a.y + (dy / l) * L} stroke="var(--canvas-axis)" stroke-width={1} stroke-dasharray={dash} {...ve} />;
+    }
+    if (r.kind === 'translate') {
+      const o = P(sh.path.vertices[0]!.at), z = P({ u: 0, v: 0 }), st = P(r.step);
+      const step = { x: st.x - z.x, y: st.y - z.y };
+      const end = { x: o.x + step.x * (r.count - 1), y: o.y + step.y * (r.count - 1) };
+      return <line key={`rep${sh.id}`} x1={o.x} y1={o.y} x2={end.x} y2={end.y} stroke="var(--canvas-axis)" stroke-width={1} stroke-dasharray={dash} {...ve} />;
+    }
+    return null;
+  });
   const radiusHandle = handle ? (
     <g class="radius-handle">
-      <line x1={handle.anchor.x} y1={handle.anchor.y} x2={handle.at.x} y2={handle.at.y} stroke="var(--canvas-radius)" stroke-width={1} stroke-dasharray="2 2" {...ve} />
       <circle cx={handle.at.x} cy={handle.at.y} r={px(6)} fill="var(--canvas-halo)" />
       <circle cx={handle.at.x} cy={handle.at.y} r={px(5)} fill={drag?.kind === 'radius' ? 'var(--canvas-selection)' : 'var(--canvas-active)'} />
-      <text x={handle.at.x + px(10)} y={handle.at.y + px(4)} font-size={px(11)} fill="var(--canvas-active)" font-family="var(--font-mono)" paint-order="stroke" stroke="var(--canvas-halo)" stroke-width={px(3)}>r {(handle.r / LEN).toFixed(2)}</text>
+      <text x={handle.at.x + px(9)} y={handle.at.y + px(4)} font-size={px(11)} fill="var(--canvas-active)" font-family="var(--font-mono)" paint-order="stroke" stroke="var(--canvas-halo)" stroke-width={px(3)}>r {(handle.r / LEN).toFixed(2)}</text>
     </g>
   ) : null;
 
@@ -287,6 +343,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
       {paper ? null : <g>{cutOutlines}</g>}
       <path d={markD} fill={paper ? doc.export.colour : 'var(--canvas-mark)'} />
       {paper ? null : <g>{invalid}{circles}{placingPath}</g>}
+      <g>{repeatGuides}</g>
       <g>{selectedOutlines}</g>
       <g>{points}</g>
       {radiusHandle}

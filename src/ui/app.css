@@ -47,3 +47,4 @@ kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: v
 .hint.error { color: var(--color-danger); }
 input, select { user-select: text; }
 .seg button { font-size: var(--type-micro-size); padding: 0 var(--space-0-5); }
+.repeat { display: flex; flex-direction: column; gap: var(--space-1); }
