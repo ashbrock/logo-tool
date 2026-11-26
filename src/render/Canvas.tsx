@@ -230,8 +230,8 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     return <path key={`c${l.u},${l.v}`} d={`M${p.x - k} ${p.y}H${p.x + k}M${p.x} ${p.y - k}V${p.y + k}`} stroke="var(--canvas-lattice)" stroke-width={1} opacity={whole ? 1 : 0.5} {...ve} />;
   });
   const ruler: preact.JSX.Element[] = [];
-  for (let i = 0; i <= W; i++) ruler.push(<text key={`rx${i}`} x={i} y={-px(10)} font-size={px(11)} text-anchor="middle" fill="var(--canvas-ruler)" font-family="var(--font-mono)">{i}</text>);
-  for (let j = 0; j <= H; j++) ruler.push(<text key={`ry${j}`} x={-px(10)} y={j + px(4)} font-size={px(11)} text-anchor="end" fill="var(--canvas-ruler)" font-family="var(--font-mono)">{j}</text>);
+  for (let i = 0; i <= W; i++) ruler.push(<text key={`rx${i}`} x={i} y={-px(10)} font-size={px(11)} class="ruler-num" text-anchor="middle" fill="var(--canvas-ruler)" font-family="var(--font-mono)">{i}</text>);
+  for (let j = 0; j <= H; j++) ruler.push(<text key={`ry${j}`} x={-px(10)} y={j + px(4)} font-size={px(11)} class="ruler-num" text-anchor="end" fill="var(--canvas-ruler)" font-family="var(--font-mono)">{j}</text>);
 
   const markD = writePath(mark.pieces.flatMap((p) => [p.outer, ...p.holes]), { scale: 1, precision: 5 });
   const cutOutlines = doc.shapes.filter((s) => s.role !== 'add').map((s) => {

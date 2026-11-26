@@ -1,18 +1,18 @@
-# DESIGN — Drafting film
+# DESIGN — Drafting film, with cutting-mat type and controls
 
 The visual system. Use these tokens. Never invent colours, fonts or spacing values (`CLAUDE.md`). The behaviour these styles serve is in `SPEC.md`.
 
 ## 1. Direction
 
-**Drafting film, plus a cell ruler.** A draughtsman's film under a lamp. Construction is drawn in **non-photo blue**, the pencil colour drafters use because it doesn't show in prints. The mark sits on top in **bone**. The tool should feel quiet and exact, so the user's mark is always the loudest thing on screen.
+**Drafting film colours, with the cutting mat's type and controls.** (The designer kept direction A's colours and took direction B's fonts, rounded controls and filled selections, plus B's cell ruler.) A draughtsman's film under a lamp. Construction is drawn in **non-photo blue**, the pencil colour drafters use because it doesn't show in prints. The mark sits on top in **bone**. The tool should feel quiet and exact, so the user's mark is always the loudest thing on screen.
 
 Principles:
 1. **Construction is blue, the mark is bone, and selection is bright paper white with a dark halo.** You can tell these three layers apart at a glance.
 2. **Show geometry instead of numbers.** Radii are circles, arcs show their centres, and stroke widths show as guides. Numbers appear in the rail, second.
-3. **Monospace first.** IBM Plex Mono carries everything you read as data or operate. The serif italic is reserved for the mark name and section headings.
+3. **Monospace first.** Martian Mono carries everything you read as data or operate, narrow in the rail and wide on the ruler. Archivo Narrow is reserved for the mark name and dialog titles.
 4. **The near-neutral ground is deliberate.** A low-chroma dark ground shifts the perceived weight of a mark the least.
 
-How it differs from the inspiration tool: warm bone fill (not pale blue-white), blue used only for construction, + crosses instead of dots for lattice points, open squares for points, a cell ruler, serif italic headings, and different mode names (Place / Adjust / Tile).
+How it differs from the inspiration tool: warm bone fill (not pale blue-white), blue used only for construction, + crosses instead of dots for lattice points, open squares for points, a cell ruler, narrow grotesque headings, and different mode names (Place / Adjust / Tile).
 
 ## 2. Colour tokens
 
@@ -73,14 +73,18 @@ Dark overlay export uses `--canvas-*` tokens, with the mark in `--canvas-mark` (
 
 ## 3. Typography
 
-Self-hosted (OFL) and subset to Latin, with `font-display: swap`. Fallback stacks are always declared.
+Self-hosted (OFL), Latin and Latin Extended subsets only, with `font-display: swap` (`src/ui/fonts.css`, licences in `src/ui/fonts/`). Fallback stacks are always declared.
 
-| Token | Family | Weights | Fallback |
+| Token | Family | Weights / axes | Fallback |
 |---|---|---|---|
-| `--font-mono` | IBM Plex Mono | 400, 500, 600 | `ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace` |
-| `--font-serif` | IBM Plex Serif Italic | 400 | `Georgia, "Times New Roman", serif` |
+| `--font-mono` | Martian Mono (variable) | weight 100–800, width 75–112.5% | `ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace` |
+| `--font-display` | Archivo Narrow | 500, 600 | `"Arial Narrow", "Helvetica Neue", sans-serif` |
+| `--stretch-ui` | — | 87.5%: rail, dialogs, hint line | — |
+| `--stretch-wide` | — | 112.5%: ruler numbers | — |
 
-**Pairing rule.** Plex Mono is used for everything you operate or read as data: controls, labels, coordinates, hint line, ruler, dialogs. Plex Serif Italic is used **only** for the mark name in the rail header and the section headings in dialogs and the shortcut sheet. It never appears in controls.
+Segmented options use the narrowest width (75%), so labels like "intersect" fit.
+
+**Pairing rule.** Martian Mono is used for everything you operate or read as data: controls, labels, coordinates, hint line, ruler, dialogs. Archivo Narrow (600, upright) is used **only** for the mark name in the rail header and dialog titles. It never appears in controls.
 
 ### 3.1 Scale
 
@@ -92,8 +96,8 @@ The ratio is about 1.17, with the base anchored at 13 px for dense desktop contr
 | `--type-label` | 11 / 16 px | mono 500, uppercase, tracking +0.08em | Rail section labels |
 | `--type-body` | 13 / 20 px | mono 400 | Control text, values, dialog body |
 | `--type-strong` | 13 / 20 px | mono 600 | Active segmented option, primary button |
-| `--type-heading` | 16 / 24 px | serif italic 400 | Dialog and sheet section headings |
-| `--type-title` | 20 / 28 px | serif italic 400 | Mark name in rail header, dialog titles |
+| `--type-heading` | 16 / 24 px | Archivo Narrow 600 | Dialog and sheet section headings |
+| `--type-title` | 20 / 28 px | Archivo Narrow 600 | Mark name in rail header, dialog titles |
 
 Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are written `(3, 1)` or `(1.5, 4)`, with two decimals only when sub-steps aren't halves (e.g. `0.30`, `(3.375, 2)` is shown as `(3⅜, 2)` when subdivision is 8). Radius and width are always shown in cells with two decimals.
 
@@ -120,7 +124,8 @@ Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are wri
 | `--control-min-target` | 32 × 32 px | Minimum hit area for any control (WCAG 2.5.8 requires 24; we use 32) |
 | `--icon-size` | 16 px | Icons inside 32 px targets |
 | `--canvas-min` | 640 × 480 px | Below this the canvas shows a "widen your window" notice |
-| `--radius-control` | 2 px | Control corners (drafting: almost square) |
+| `--radius-control` | 4 px | Control corners (cutting mat: softly rounded) |
+| `--radius-key` | 3 px | Key caps (`kbd`) |
 | `--border-width` | 1 px | All borders |
 | `--focus-width` | 2 px | Focus ring, with 2 px offset |
 
@@ -163,7 +168,7 @@ All interactive elements have every state below. Colours are given as tokens.
 | **Hover** | fill `--color-surface-raised` | border `--color-text-muted` | square fills `--canvas-active`, cursor pointer |
 | **Focus (keyboard)** | 2 px `--color-accent` outline, 2 px offset (`:focus-visible` only) | same | 2 px `--color-accent` ring at 14 px around the point |
 | **Active / pressed** | fill `--color-surface-raised`, inset 1 px `--color-accent` bottom | — | — |
-| **Selected / on** | segmented: text `--color-accent`, 2 px `--color-accent` underline; primary: border `--color-accent` | — | filled `--canvas-selection` + ring |
+| **Selected / on** | segmented and toggle buttons: filled `--color-accent`, text `--color-on-accent` at 600 (marking ink); primary: border and text `--color-accent` | — | filled `--canvas-selection` + ring |
 | **Disabled** | text `--color-text-disabled`, border `--color-border`, no hover, `cursor: not-allowed`, still focusable when it has a reason tooltip | same | — |
 | **Loading** | label replaced by "Rendering 2048 px…", button disabled, no spinner | — | — |
 | **Error** | — | border `--color-danger`, message below in `--type-micro` `--color-danger` | invalid ring: 1.5 px `--canvas-invalid` circle at 14 px |

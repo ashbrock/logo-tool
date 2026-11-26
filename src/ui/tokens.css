@@ -42,9 +42,12 @@
   --paper-lattice: #7fa9bf;
   --paper-radius: #3f87ad;
 
-  /* §3 Typography (self-hosted Plex files are added with the UI; the fallbacks apply until then) */
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --font-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  /* §3 Typography (self-hosted in fonts.css) */
+  --font-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-display: "Archivo Narrow", "Arial Narrow", "Helvetica Neue", sans-serif;
+  /* Martian Mono's width axis: narrow in the rail and dialogs, wide for ruler numbers. */
+  --stretch-ui: 87.5%;
+  --stretch-wide: 112.5%;
 
   /* §3.1 Scale: size / line height */
   --type-micro-size: 11px;   --type-micro-lh: 16px;
@@ -66,7 +69,8 @@
   --ruler-size: 24px;
   --control-height: 32px;
   --icon-size: 16px;
-  --radius-control: 2px;
+  --radius-control: 4px;
+  --radius-key: 3px;
   --border-width: 1px;
   --focus-width: 2px;
 

@@ -12,6 +12,12 @@ for (const f of files) {
   const src = readFileSync(new URL(f, dist), 'utf8');
   writeFileSync(new URL(f, out), src.replace(/[^\x00-\x7f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`));
 }
+// Fonts (self-hosted woff2), copied as they are.
+const fontsIn = new URL('fonts/', dist), fontsOut = new URL('fonts/', out);
+mkdirSync(fontsOut, { recursive: true });
+const fonts = readdirSync(fontsIn).filter((f) => f.endsWith('.woff2'));
+for (const f of fonts) copyFileSync(new URL(f, fontsIn), new URL(f, fontsOut));
+files.push(...fonts.map((f) => `fonts/${f}`));
 writeFileSync(new URL('index.html', out), `<title>Construction Tool</title>
 <link rel="stylesheet" href="app.css">
 <div id="app"></div>

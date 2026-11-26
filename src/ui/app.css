@@ -1,13 +1,13 @@
 /* App layout and controls. Every value comes from tokens.css (DESIGN.md). */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--color-bg); color: var(--color-text); }
-body { font-family: var(--font-mono); font-size: var(--type-body-size); line-height: var(--type-body-lh); }
+body { font-family: var(--font-mono); font-stretch: var(--stretch-ui); font-size: var(--type-body-size); line-height: var(--type-body-lh); }
 #app { height: 100%; }
 .app { user-select: none; display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); height: 100vh; overflow: hidden; }
 
 .rail { max-height: 100vh; background: var(--color-surface); border-right: var(--border-width) solid var(--color-border); overflow-y: auto; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); }
 .rail-head { display: flex; flex-direction: column; gap: var(--space-1); }
-.mark-name { font-family: var(--font-serif); font-style: italic; font-size: var(--type-title-size); line-height: var(--type-title-lh); color: var(--color-text); background: transparent; border: var(--border-width) solid transparent; border-radius: var(--radius-control); padding: 0 var(--space-0-5); min-height: var(--control-height); width: 100%; }
+.mark-name { font-family: var(--font-display); font-weight: 600; font-size: var(--type-title-size); line-height: var(--type-title-lh); color: var(--color-text); background: transparent; border: var(--border-width) solid transparent; border-radius: var(--radius-control); padding: 0 var(--space-0-5); min-height: var(--control-height); width: 100%; }
 .mark-name:hover { border-color: var(--color-border-control); }
 .group { display: flex; flex-direction: column; gap: var(--space-1); border-top: var(--border-width) solid var(--color-border); padding-top: var(--space-2); }
 .label { margin: 0; font-size: var(--type-label-size); line-height: var(--type-label-lh); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
@@ -29,14 +29,16 @@ select { background: var(--color-bg); }
 .btn:hover:not(:disabled), .seg button:hover:not([aria-pressed="true"]):not(:disabled), select:hover { background: var(--color-surface-raised); }
 .btn:active:not(:disabled), .seg button:active { background: var(--color-surface-raised); box-shadow: inset 0 -1px 0 var(--color-accent); }
 .btn:disabled { color: var(--color-text-disabled); border-color: var(--color-border); cursor: not-allowed; }
-.btn[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
+.btn[aria-pressed="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); font-weight: 600; }
+.btn[aria-pressed="true"] kbd, .seg button[aria-pressed="true"] kbd { color: var(--color-on-accent); border-color: var(--color-on-accent); }
 :focus-visible { outline: var(--focus-width) solid var(--color-accent); outline-offset: 2px; }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
 .seg button { border-radius: 0; margin-left: calc(-1 * var(--border-width)); }
 .seg button:first-child { margin-left: 0; border-radius: var(--radius-control) 0 0 var(--radius-control); }
 .seg button:last-child { border-radius: 0 var(--radius-control) var(--radius-control) 0; }
-.seg button[aria-pressed="true"] { color: var(--color-accent); font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent); position: relative; }
-kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: var(--color-text-muted); }
+/* Cutting-mat controls: the selected option is filled with the accent, like marking ink. */
+.seg button[aria-pressed="true"] { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-accent); font-weight: 600; position: relative; }
+kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: var(--color-text-muted); border: var(--border-width) solid var(--color-border-control); border-radius: var(--radius-key); padding: 0 var(--space-0-5); line-height: var(--type-micro-lh); }
 .field { display: flex; flex-direction: column; gap: var(--space-0-5); font-size: var(--type-micro-size); color: var(--color-text-muted); flex: 1; }
 
 .stage { display: grid; grid-template-rows: minmax(0, 1fr) var(--hint-height); min-width: 0; min-height: 0; height: 100vh; }
@@ -46,11 +48,11 @@ kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: v
 .hint { margin: 0; padding: 0 var(--space-2); display: flex; align-items: center; border-top: var(--border-width) solid var(--color-border); color: var(--color-text-muted); font-size: var(--type-micro-size); line-height: var(--type-micro-lh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint.error { color: var(--color-danger); }
 input, select { user-select: text; }
-.seg button { font-size: var(--type-micro-size); padding: 0 var(--space-0-5); }
+.seg button { font-size: var(--type-micro-size); padding: 0 var(--space-0-5); font-stretch: 75%; }
 .repeat { display: flex; flex-direction: column; gap: var(--space-1); }
 
 /* Primary action and text inputs (DESIGN.md §6). */
-.btn.primary { border-color: var(--color-accent); font-weight: 600; }
+.btn.primary { border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
 .btn.primary:disabled { border-color: var(--color-border); font-weight: 400; }
 .btn kbd { margin-left: var(--space-0-5); }
 input:not(.mark-name), textarea {
@@ -67,7 +69,7 @@ input.invalid { border-color: var(--color-danger); }
 /* Dialogs (DESIGN.md §5): centred, bordered, no shadow, over a 72% scrim. */
 .scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--color-bg) 72%, transparent); display: flex; justify-content: center; align-items: flex-start; padding: var(--space-8) var(--space-2) var(--space-2); z-index: 10; animation: fade var(--motion-base) var(--motion-ease); }
 .dialog { background: var(--color-surface); border: var(--border-width) solid var(--color-border-control); border-radius: var(--radius-control); padding: var(--space-4); max-width: 560px; width: 100%; max-height: calc(100vh - var(--space-8) - var(--space-2)); overflow: auto; }
-.dialog-title { margin: 0; font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: var(--type-title-size); line-height: var(--type-title-lh); }
+.dialog-title { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--type-title-size); line-height: var(--type-title-lh); }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
 .dialog.export { max-width: 880px; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--space-4); }
@@ -116,3 +118,4 @@ input.invalid { border-color: var(--color-danger); }
 /* Length fields (− value +, typed in cells). */
 .length-field { display: flex; flex-direction: column; gap: var(--space-0-5); }
 .length-input { text-align: center; font-variant-numeric: tabular-nums; }
+.ruler-num { font-stretch: var(--stretch-wide); font-variant-numeric: tabular-nums; }

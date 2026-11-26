@@ -384,7 +384,7 @@ export function App() {
           </section>
         ) : null}
         <section class="group export-actions" aria-label="Export">
-          <button type="button" class="btn primary" onClick={() => dispatch({ type: 'dialog', value: 'export' })}>Export… <kbd>⌘E</kbd></button>
+          <button type="button" class="btn primary" title="Export SVG or PNG (⌘E)" aria-keyshortcuts="Meta+E" onClick={() => dispatch({ type: 'dialog', value: 'export' })}>Export…</button>
           <button type="button" class="btn" disabled={blocked.length > 0} title={blocked[0]?.text ?? 'Copy the SVG with the current export settings (⌘⇧C)'} aria-keyshortcuts="Meta+Shift+C" onClick={() => void quickCopy()}>Copy SVG</button>
         </section>
       </aside>

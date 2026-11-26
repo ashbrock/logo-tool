@@ -10,7 +10,12 @@ export default defineConfig({
     outDir: 'dist',
     assetsInlineLimit: 0,
     rollupOptions: {
-      output: { entryFileNames: 'app.js', chunkFileNames: 'app-[name].js', assetFileNames: 'app.[ext]' },
+      output: {
+        entryFileNames: 'app.js',
+        chunkFileNames: 'app-[name].js',
+        // The stylesheet is app.css; fonts keep their names under fonts/.
+        assetFileNames: (a) => (a.names?.some((n) => n.endsWith('.css')) ? 'app.[ext]' : 'fonts/[name].[ext]'),
+      },
     },
   },
 });
