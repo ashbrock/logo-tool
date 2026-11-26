@@ -122,6 +122,25 @@ const fs = require('node:fs');
       assert.equal(await p.locator('.repeat .value').first().textContent(), '×5');
       assert.ok((await markD()).length > four.length, 'a fifth copy');
     });
+    await check('Set centre, then a click, moves the rotate centre there', async () => {
+      await p.locator('.repeat button', { hasText: 'Set centre' }).click();
+      assert.match(await p.locator('.hint').textContent(), /repeat centre/);
+      const before = await markD();
+      await click(2, 2);
+      assert.notEqual(await markD(), before);
+      assert.equal(await p.locator('.repeat button', { hasText: 'Click a point' }).count(), 0);
+    });
+    await check('Save downloads the mark as a project file, and Open brings it back', async () => {
+      const markBefore = await markD();
+      const [d] = await Promise.all([p.waitForEvent('download'), p.locator('.rail-head button', { hasText: 'Save' }).click()]);
+      assert.match(d.suggestedFilename(), /\.logo\.json$/);
+      const file = await d.path();
+      await p.locator('button', { hasText: 'Clear mark' }).click();
+      assert.equal(await markD(), '');
+      await p.setInputFiles('input[type=file]', file);
+      await p.waitForTimeout(200);
+      assert.equal(await markD(), markBefore);
+    });
     await check('Ctrl+A selects points, not page text', async () => {
       await p.keyboard.press('Control+a');
       assert.equal(await p.evaluate(() => String(window.getSelection())), '');

@@ -149,3 +149,9 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Type parameters are set when the mark is created.** Slant, rotation, ratio, rays and the companion lattice are chosen in the dialog. The rail changes size, rings and steps, which `setGrid` rescales exactly or refuses. "Change grid type…" appears while the mark is empty. Editing slant or rotation on a mark with points would rarely keep them on the lattice, so it waits until it's asked for.
 - **Typographic rows are dashed `--canvas-lattice` lines with `--canvas-ruler` labels to the right.** DESIGN.md names no row style, so these reuse existing tokens: construction rather than mark, readable but quiet. The canvas adds two cells of margin on the right for the labels.
 - **The New-mark dialog opens on first visit** (SPEC.md §4.2). Esc keeps the default square mark. Esc now closes any dialog wherever focus is; the e2e suite found that otherwise it failed intermittently.
+
+## Repeat centre and project files
+
+- **The repeat centre is set by clicking.** "Set centre" arms the next canvas click (a copy cursor and a hint line, Esc cancels). It also works in Place mode, so you don't have to switch modes to adjust a repeat.
+- **Mirror axes are found in the plane, not in lattice coordinates.** On a polar grid, (u, v + 1) is a different ray, not a point below. So a vertical axis is the nearest lattice point exactly below the axis point, and moving a mirror keeps the line's direction.
+- **Save and Open project files** (⌘S, ⌘O) download and load `.logo.json`. Opening is one undoable step, and a bad file is reported in the hint line. The rebuilds in `artifacts/rebuilds/` open this way too.

@@ -115,6 +115,28 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     const q = toCells(e);
     const at = snapTo(q, e.ctrlKey);
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    if (state.pickCentre) {
+      // Set the repeat centre (rotate) or the point the mirror line passes through, keeping its direction.
+      for (const id of state.pickCentre) {
+        const sh = doc.shapes.find((x) => x.id === id);
+        const r = sh?.repeat;
+        if (!sh || !r) continue;
+        let repeat = null;
+        if (r.kind === 'rotate') repeat = { ...r, centre: at };
+        else if (r.kind === 'mirror') {
+          // Keep the mirror line's direction: find a lattice point along it from the new point.
+          const a = P(r.through), b = P(r.to), o = P(at), dir = { x: b.x - a.x, y: b.y - a.y };
+          for (const k of [1, 2, 3, 4, 0.5, 0.25, -1, -2]) {
+            const q = { x: o.x + dir.x * k, y: o.y + dir.y * k }, n = nearest(q, g), np = P(n);
+            if (Math.hypot(np.x - q.x, np.y - q.y) < 1e-9 && !latticeEq(n, at)) { repeat = { ...r, through: at, to: n }; break; }
+          }
+          if (!repeat) dispatch({ type: 'status', text: 'No lattice point lies along the mirror line from there.', tone: 'error' });
+        }
+        if (repeat) dispatch({ type: 'command', command: { type: 'setRepeat', shapeId: id, repeat }, label: 'Repeat centre' });
+      }
+      dispatch({ type: 'pickCentre', shapeIds: null });
+      return;
+    }
     if (state.mode === 'place') {
       if (placingShape) {
         const first = placingShape.path.vertices[0]!;
@@ -336,7 +358,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
   return (
     <svg
       ref={svg}
-      class={`canvas mode-${state.mode}${drag?.kind === 'radius' ? ' dragging-radius' : ''}`}
+      class={`canvas mode-${state.mode}${drag?.kind === 'radius' ? ' dragging-radius' : ''}${state.pickCentre ? ' picking' : ''}`}
       viewBox={`${-MARGIN} ${-MARGIN} ${W + 2 * MARGIN + XR} ${H + 2 * MARGIN}`}
       preserveAspectRatio="xMidYMid meet"
       role="application"

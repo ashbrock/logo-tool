@@ -111,3 +111,4 @@ input.invalid { border-color: var(--color-danger); }
 .param-grid input { width: 100%; }
 .examples { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .rail .link { align-self: flex-start; font-size: var(--type-micro-size); }
+.canvas.picking { cursor: copy; }

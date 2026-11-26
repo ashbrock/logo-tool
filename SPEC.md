@@ -181,7 +181,7 @@ At radius 0 all four types give a sharp corner exactly on the point.
   - **mirror** in a line through a lattice point
   - **along a line ×n** by a lattice step
 
-  The centre, axis or step shows on the canvas while the shape is selected. In this build the rail sets the type, count, mirror and step, and the centre and mirror axes are the lattice point nearest the grid centre. Choosing the centre by clicking comes later.
+  The centre, axis or step shows on the canvas while the shape is selected. The rail sets the type, count, mirror and step. A new repeat is centred on the lattice point nearest the grid centre. **Set centre** (rotate) or **Set axis point** (mirror), then a click on any grid point, moves it there; a mirror keeps its direction. Vertical and horizontal mirror axes work on every grid type.
 - Repeats are **live**: you edit the source shape, and the copies are derived from it exactly each time. Copies aren't stored points, so they don't have to land on lattice points. An 8-fold repeat on a square grid is allowed. Copies at angles the grid doesn't share export with 3-decimal coordinates.
 - Copies take part in merge, cut and intersect exactly like their source, in the source's place in the evaluation order. Their points can't be selected, and clicking a copy selects its source.
 - **Detach** turns copies into ordinary shapes. It's only offered when every copy's points land on lattice points (for example a 4-fold repeat on a square grid). Otherwise it's disabled, and its tooltip says why.

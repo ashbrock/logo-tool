@@ -5,11 +5,11 @@
  */
 import { useEffect, useMemo, useReducer, useRef } from 'preact/hooks';
 import paper from 'paper/dist/paper-core';
-import { defaultGrid, gridSize, nearest, SUBDIVISIONS, type GridDef, type Subdivision } from '../grids';
+import { defaultGrid, gridSize, nearest, SUBDIVISIONS, toPlane, type GridDef, type Subdivision } from '../grids';
 import { makePaperEngine } from '../boolean/paper-adapter';
 import { evaluateDocument } from '../pipeline/resolve';
 import { emptyDocument, LEN, type LogoDocument, type Repeat, type Vertex } from '../model/types';
-import { lattice } from '../geometry/lattice';
+import { lattice, type Lattice } from '../geometry/lattice';
 import type { CornerType } from '../geometry/corners';
 import { parseProject, serialize } from '../persist/project';
 import { Canvas } from '../render/Canvas';
@@ -20,6 +20,7 @@ import { NewMarkDialog } from './NewMarkDialog';
 import { buildSvg, exportProblems, finishSvg } from '../export/svg';
 import { loadSvgo, svgoNow } from '../export/svgo-loader';
 import { copySvg } from './clipboard';
+import { download, fileStem } from '../export/png';
 
 const engine = makePaperEngine(paper as unknown as typeof import('paper'));
 const STORAGE_KEY = 'logo-tool:doc';
@@ -53,6 +54,7 @@ function selectedShapeIds(s: UiState): string[] {
 }
 
 function hintFor(s: UiState): string {
+  if (s.pickCentre) return 'Click a grid point for the repeat centre · Esc cancels';
   if (s.paperPreview) return 'Paper preview · \\ to return to the canvas';
   if (s.mode === 'place') {
     if (s.placing && s.arcPreview) {
@@ -106,12 +108,15 @@ export function App() {
         return run({ type: 'select', ids: shapes.flatMap((sh) => sh.path.vertices.map((v) => v.id)) });
       }
       if (mod && k.toLowerCase() === 'e') return run({ type: 'dialog', value: 'export' });
+      if (mod && k.toLowerCase() === 's') { e.preventDefault(); saveProject(doc); return; }
+      if (mod && k.toLowerCase() === 'o') { e.preventDefault(); fileInput.current?.click(); return; }
       if (mod && e.shiftKey && k.toLowerCase() === 'c') { e.preventDefault(); void quickCopy(); return; }
       if (mod) return;
       if (k === 'p' || k === 'P') return run({ type: 'mode', mode: 'place' });
       if (k === 'v' || k === 'V') return run({ type: 'mode', mode: 'adjust' });
       if (k === '\\') return run({ type: 'paperPreview' });
       if (k === 'Escape') {
+        if (state.pickCentre) return run({ type: 'pickCentre', shapeIds: null });
         if (state.placing) return run({ type: 'placing', shapeId: null });
         return run({ type: 'select', ids: [] });
       }
@@ -166,6 +171,17 @@ export function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Project files (SPEC.md §6.11): Save downloads <name>.logo.json; Open replaces the mark, undoably.
+  const fileInput = useRef<HTMLInputElement>(null);
+  const openProject = async (file: File) => {
+    const r = parseProject(await file.text());
+    if (!r.ok) { dispatch({ type: 'status', text: `Couldn’t open ${file.name}: ${r.error}`, tone: 'error' }); return; }
+    dispatch({ type: 'command', command: { type: 'replace', doc: r.doc }, label: `Open ${file.name}` });
+    dispatch({ type: 'dialog', value: null });
+    dispatch({ type: 'mode', mode: 'adjust' });
+    dispatch({ type: 'status', text: `Opened ${file.name}. Undo to go back.` });
+  };
 
   // First visit: start by choosing a grid (SPEC.md §4.2).
   useEffect(() => { if (initial.fresh) dispatch({ type: 'dialog', value: 'new' }); }, []);
@@ -243,6 +259,11 @@ export function App() {
           <input class="mark-name" id="mark-name" aria-label="Mark name" value={doc.name} onChange={(e) => dispatch({ type: 'command', command: { type: 'rename', name: (e.target as HTMLInputElement).value }, label: 'Rename' })} />
           <div class="row">
             <button type="button" class="btn" onClick={() => dispatch({ type: 'dialog', value: 'new' })} title="Start a new mark on any grid type">New…</button>
+            <button type="button" class="btn" onClick={() => fileInput.current?.click()} title="Open a .logo.json project file (⌘O)">Open…</button>
+            <button type="button" class="btn" onClick={() => saveProject(doc)} title="Save this mark as a .logo.json project file (⌘S)">Save</button>
+            <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = (e.target as HTMLInputElement).files?.[0]; (e.target as HTMLInputElement).value = ''; if (f) void openProject(f); }} />
+          </div>
+          <div class="row">
             <button type="button" class="btn" disabled={state.history.past.length === 0} onClick={() => dispatch({ type: 'undo' })} aria-label="Undo">Undo</button>
             <button type="button" class="btn" disabled={state.history.future.length === 0} onClick={() => dispatch({ type: 'redo' })} aria-label="Redo">Redo</button>
           </div>
@@ -328,7 +349,7 @@ export function App() {
                 <button type="button" aria-pressed={firstShape.role === r} aria-keyshortcuts={String(i + 1)} title={`${r} (${i + 1})`} onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRole', shapeId: id, role: r }, label: 'Role' }))}>{r}</button>
               ))}
             </div>
-            <RepeatControls repeat={firstShape.repeat} sub={g.subdivision} centre={gridCentre(g)} onChange={(repeat) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRepeat', shapeId: id, repeat }, label: 'Repeat' }))} />
+            <RepeatControls repeat={firstShape.repeat} grid={g} centre={gridCentre(g)} picking={!!state.pickCentre} onPick={() => dispatch({ type: 'pickCentre', shapeIds: state.pickCentre ? null : shapeIds })} onChange={(repeat) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRepeat', shapeId: id, repeat }, label: 'Repeat' }))} />
             <div class="row radius">
               <button type="button" class="btn" aria-label="Smaller joint radius" onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: Math.max(0, firstShape.jointRadius - 10) }, label: 'Joint radius' }))}>−</button>
               <span class="value" title="Rounds the corners this shape creates where it meets others">joint {(firstShape.jointRadius / LEN).toFixed(2)}</span>
@@ -407,11 +428,27 @@ function gridLabel(g: GridDef): string {
   }
 }
 
-function RepeatControls({ repeat, sub, centre, onChange }: { repeat: Repeat; sub: number; centre: ReturnType<typeof gridCentre>; onChange: (r: Repeat) => void }) {
+/** A lattice point exactly below (vertical) or beside (horizontal) `p`, so a mirror line can pass through both, on any grid. */
+function axisPoint(g: GridDef, p: Lattice, vertical: boolean): Lattice | null {
+  const a = toPlane(p, g);
+  for (const d of [1, 2, 3, 4, -1, -2, -3, -4]) {
+    for (const k of [1 / g.subdivision, 1]) {
+      const q = vertical ? { x: a.x, y: a.y + d * k } : { x: a.x + d * k, y: a.y };
+      const n = nearest(q, g), b = toPlane(n, g);
+      if (Math.hypot(b.x - q.x, b.y - q.y) < 1e-9 && !(n.u === p.u && n.v === p.v && n.layer === p.layer)) return n;
+    }
+  }
+  return null;
+}
+
+function RepeatControls({ repeat, grid, centre, picking, onPick, onChange }: { repeat: Repeat; grid: GridDef; centre: Lattice; picking: boolean; onPick: () => void; onChange: (r: Repeat) => void }) {
+  const sub = grid.subdivision;
+  const mirror = (through: Lattice, vertical: boolean): Repeat | null => { const to = axisPoint(grid, through, vertical); return to ? { kind: 'mirror', through, to } : null; };
+  const pick = <button type="button" class="btn" aria-pressed={picking} onClick={onPick} title="Then click a grid point on the canvas">{picking ? 'Click a point…' : repeat.kind === 'mirror' ? 'Set axis point' : 'Set centre'}</button>;
   const kinds = [['none', 'Off'], ['rotate', 'Rotate'], ['mirror', 'Mirror'], ['translate', 'Line']] as const;
   const start = (k: Repeat['kind']): Repeat =>
     k === 'rotate' ? { kind: 'rotate', centre, count: 4, mirrored: false }
-      : k === 'mirror' ? { kind: 'mirror', through: centre, to: lattice(centre.u, centre.v + sub) }
+      : k === 'mirror' ? (mirror(centre, true) ?? { kind: 'none' })
         : k === 'translate' ? { kind: 'translate', step: lattice(sub, 0), count: 3 }
           : { kind: 'none' };
   const count = (n: number) => Math.max(2, Math.min(360, n));
@@ -429,10 +466,15 @@ function RepeatControls({ repeat, sub, centre, onChange }: { repeat: Repeat; sub
           <button type="button" class="btn" aria-pressed={repeat.mirrored} onClick={() => onChange({ ...repeat, mirrored: !repeat.mirrored })}>Mirror</button>
         </div>
       ) : null}
+      {repeat.kind === 'rotate' || repeat.kind === 'mirror' ? pick : null}
       {repeat.kind === 'mirror' ? (
         <div class="seg" role="group" aria-label="Mirror axis">
-          <button type="button" aria-pressed={repeat.to.u === repeat.through.u} onClick={() => onChange({ kind: 'mirror', through: centre, to: lattice(centre.u, centre.v + sub) })}>Vertical</button>
-          <button type="button" aria-pressed={repeat.to.v === repeat.through.v} onClick={() => onChange({ kind: 'mirror', through: centre, to: lattice(centre.u + sub, centre.v) })}>Horizontal</button>
+          {([true, false] as const).map((vertical) => {
+            const a = toPlane(repeat.through, grid), b = toPlane(repeat.to, grid);
+            const on = vertical ? Math.abs(a.x - b.x) < 1e-9 : Math.abs(a.y - b.y) < 1e-9;
+            const next = mirror(repeat.through, vertical);
+            return <button type="button" aria-pressed={on} disabled={!next} onClick={() => next && onChange(next)}>{vertical ? 'Vertical' : 'Horizontal'}</button>;
+          })}
         </div>
       ) : null}
       {repeat.kind === 'translate' ? (
@@ -474,3 +516,6 @@ function describe(i: ReturnType<typeof evaluateDocument>['issues'][number]): str
   return 'This shape can’t be drawn yet.';
 }
 
+function saveProject(doc: LogoDocument) {
+  download(new Blob([serialize(doc)], { type: 'application/json' }), `${fileStem(doc.name)}.logo.json`);
+}

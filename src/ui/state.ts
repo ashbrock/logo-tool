@@ -27,6 +27,8 @@ export interface UiState {
   readonly arcPreview: { readonly count: number; readonly index: number } | null;
   /** The open dialog, if any. Canvas shortcuts are off while one is open. */
   readonly dialog: 'export' | 'new' | null;
+  /** Shapes whose repeat centre (or mirror point) the next canvas click sets. */
+  readonly pickCentre: readonly string[] | null;
 }
 
 export type Action =
@@ -43,10 +45,11 @@ export type Action =
   | { type: 'arcCycle'; delta: number }
   | { type: 'arcPreview'; value: { count: number; index: number } | null }
   | { type: 'finishPlacing'; selectShape: boolean }
-  | { type: 'dialog'; value: 'export' | 'new' | null };
+  | { type: 'dialog'; value: 'export' | 'new' | null }
+  | { type: 'pickCentre'; shapeIds: readonly string[] | null };
 
 export const initState = (doc: LogoDocument): UiState => ({
-  history: initHistory(doc), mode: 'place', selection: [], placing: null, status: null, paperPreview: false, strokeWidth: 30, arcArmed: false, arcIndex: 0, arcPreview: null, dialog: null,
+  history: initHistory(doc), mode: 'place', selection: [], placing: null, status: null, paperPreview: false, strokeWidth: 30, arcArmed: false, arcIndex: 0, arcPreview: null, dialog: null, pickCentre: null,
 });
 
 /** Drop selection entries and the placing shape that no longer exist after an edit. */
@@ -94,6 +97,7 @@ export function reducer(s: UiState, a: Action): UiState {
       if (v === o || (v && o && v.count === o.count && v.index === o.index)) return s;
       return { ...s, arcPreview: v };
     }
+    case 'pickCentre': return { ...s, pickCentre: a.shapeIds };
     case 'dialog': return { ...s, dialog: a.value, ...(a.value ? { placing: null, arcArmed: false } : {}) };
     case 'finishPlacing': {
       // After a shape is finished, switch to Adjust with its points selected, ready to round or set its role.
