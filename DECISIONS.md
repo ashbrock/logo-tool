@@ -166,3 +166,9 @@ One or two lines per significant decision, with the reason. Newest last.
 - **Shortcut hints moved into tooltips on the two pinned rail buttons,** because Martian Mono is wider than Plex and "Export… ⌘E" wrapped.
 - **One typeface: Martian Mono everywhere** (designer's direction). The mark name and dialog titles drop Archivo Narrow (which had replaced the original serif) and use Martian Mono 600. Hierarchy comes from size and weight. One family also means one font download.
 - **IBM Plex Mono replaces Martian Mono** (designer's direction), still the only typeface, self-hosted at 400, 500 and 600 (Latin and Latin Extended). Plex has no width axis, so the width tokens (narrow rail, wide ruler, 75% segmented labels) are gone; segmented labels fit at the micro size.
+
+## Examples per grid type
+
+- **At least two examples per grid type, grouped rather than filtered.** Opening an example replaces the whole mark, grid included, so hiding other types' examples would hide exactly what a curious user wants. The New-mark dialog shows the selected type's examples; the rail menu shows all of them, with the current type's group first. A test enforces two or more per type.
+- **Descriptive names, never reference file names** (designer's request), also enforced by a test. The reference rebuilds now live in the examples (Block P, Rounded diagonals, Isometric E, Slanted P, Rays in a frame, Curled wordmark, Ribbon, Wireframe cube P), and the reconstruction tests load them from there, so each is built once. Only the tests keep the file names, to know which original to compare against.
+- **New examples fill the types without references:** Cube with a Y cut (isometric), Segmented dial (polar), Hexagon with a triangle cut and Nested chevrons (triangular), Letter n and Letter b (typographic, flat-ended strokes on the named rows).

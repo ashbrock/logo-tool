@@ -9,7 +9,7 @@ import type { Preset } from '../grids/presets';
 import { gridLines, namedRows } from '../grids/lines';
 import { EXAMPLES } from '../examples';
 
-const NAMES: Record<Preset, string> = { square: 'Square', triangular: 'Triangular', isometric: 'Isometric', polar: 'Polar', typographic: 'Typographic' };
+export const NAMES: Record<Preset, string> = { square: 'Square', triangular: 'Triangular', isometric: 'Isometric', polar: 'Polar', typographic: 'Typographic' };
 const NOTES: Record<Preset, string> = {
   square: 'Cells, optional slant and rotation.',
   triangular: 'Equilateral triangles, 60° directions.',
@@ -148,9 +148,9 @@ export function NewMarkDialog({ firstVisit, onCreate, onExample, onClose }: Prop
         </div>
 
         <div class="group">
-          <span class="label">Or open an example</span>
+          <span class="label">Or open a {NAMES[preset].toLowerCase()} example</span>
           <div class="examples">
-            {EXAMPLES.map((x) => <button type="button" class="btn" title={x.note} onClick={() => onExample(x.id)}>{x.name}</button>)}
+            {EXAMPLES.filter((x) => x.grid === preset).map((x) => <button type="button" class="btn" title={x.note} onClick={() => onExample(x.id)}>{x.name}</button>)}
           </div>
         </div>
       </div>

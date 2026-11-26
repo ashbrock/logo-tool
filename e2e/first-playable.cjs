@@ -182,6 +182,14 @@ const fs = require('node:fs');
       assert.match(await p.locator('#grid-label + .value').textContent(), /^Polar · 6 rings × 24 rays/);
       assert.ok(await p.evaluate(() => document.querySelectorAll('svg.canvas circle[fill="none"]').length >= 6), 'rings drawn');
     });
+    await check('examples follow the grid type: in the dialog per type, and grouped in the rail', async () => {
+      assert.equal(await p.locator('#examples optgroup').first().getAttribute('label'), 'Polar');
+      await p.locator('.rail-head button', { hasText: 'New…' }).click();
+      await p.locator('.grid-types button[data-preset="triangular"]').click();
+      const names = await p.locator('.dialog.new-mark .examples button').allTextContents();
+      assert.ok(names.length >= 2 && names.includes('Nested chevrons') && !names.includes('Sun (8-fold)'), names.join(', '));
+      await p.keyboard.press('Escape');
+    });
     await check('on a polar grid, points snap to rings and rays and a closed shape fills', async () => {
       // Centre is (6, 6); ring 3 at 0°, 90°, 180°, 270°.
       for (const [x, y] of [[9, 6], [6, 9], [3, 6], [6, 3], [9, 6]]) await click(x, y);

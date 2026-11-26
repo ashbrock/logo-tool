@@ -55,7 +55,7 @@ export function builder(grid: GridDef, name: string) {
      * `sweep` (1 = clockwise on screen). A closed path whose last step returns to the start closes
      * with that step.
      */
-    path(steps: PathStep[], opts: { closed?: boolean; stroke?: number; role?: 'add' | 'cut' | 'intersect'; corners?: (number | [CornerType, number])[] } = {}) {
+    path(steps: PathStep[], opts: { closed?: boolean; stroke?: number; cap?: 'butt' | 'round' | 'square'; role?: 'add' | 'cut' | 'intersect'; corners?: (number | [CornerType, number])[] } = {}) {
       const P = (p: readonly [number, number]) => L(p[0], p[1]);
       const first = steps[0] as readonly [number, number];
       run({ type: 'addShape', at: P(first), ...(opts.stroke ? { paint: 'stroke' as const, width: Math.round(opts.stroke * LEN) } : {}) });
@@ -88,10 +88,13 @@ export function builder(grid: GridDef, name: string) {
         if (type !== 'round') run({ type: 'setCorner', vertexIds: [vs[i]!.id], corner: type });
       });
       if (opts.role && opts.role !== 'add') run({ type: 'setRole', shapeId: id, role: opts.role });
+      const paint = lastShape().paint;
+      if (opts.cap && paint.kind === 'stroke' && paint.cap !== opts.cap) run({ type: 'setPaint', shapeId: id, paint: { ...paint, cap: opts.cap } });
     },
-    circle(x: number, y: number, r: number) {
+    circle(x: number, y: number, r: number, role: 'add' | 'cut' | 'intersect' = 'add') {
       run({ type: 'addShape', at: L(x, y) });
       run({ type: 'setRadius', vertexIds: [lastShape().path.vertices[0]!.id], radius: Math.round(r * LEN) });
+      if (role !== 'add') run({ type: 'setRole', shapeId: lastShape().id, role });
     },
     run,
     lastShape,

@@ -82,8 +82,8 @@ describe('SVG export: examples', () => {
     }
   }
 
-  it('E5: a lattice-only mark on a square grid exports integers only (p-logo-1, sharp corners)', () => {
-    const { svg } = exportDoc(EXAMPLES.find((e) => e.id === 'p-logo-1')!.build());
+  it('E5: a lattice-only mark on a square grid exports integers only (Block P, sharp corners)', () => {
+    const { svg } = exportDoc(EXAMPLES.find((e) => e.id === 'block-p')!.build());
     const numbers = svg.match(/-?\d*\.?\d+/g) ?? [];
     expect(numbers.filter((n) => n.includes('.'))).toEqual([]);
   });

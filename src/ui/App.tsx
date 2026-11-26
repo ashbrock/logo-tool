@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useReducer, useRef } from 'preact/hooks';
 import paper from 'paper/dist/paper-core';
-import { defaultGrid, gridSize, nearest, SUBDIVISIONS, toPlane, type GridDef, type Subdivision } from '../grids';
+import { defaultGrid, gridSize, nearest, PRESETS, SUBDIVISIONS, toPlane, type GridDef, type Subdivision } from '../grids';
 import { makePaperEngine } from '../boolean/paper-adapter';
 import { evaluateDocument } from '../pipeline/resolve';
 import { emptyDocument, LEN, type LogoDocument, type Repeat, type Vertex } from '../model/types';
@@ -16,7 +16,7 @@ import { Canvas } from '../render/Canvas';
 import { EXAMPLES } from '../examples';
 import { initState, reducer, type UiState } from './state';
 import { ExportDialog } from './ExportDialog';
-import { NewMarkDialog } from './NewMarkDialog';
+import { NAMES, NewMarkDialog } from './NewMarkDialog';
 import { buildSvg, exportProblems, finishSvg } from '../export/svg';
 import { loadSvgo, svgoNow } from '../export/svgo-loader';
 import { copySvg } from './clipboard';
@@ -290,7 +290,12 @@ export function App() {
               dispatch({ type: 'status', text: `${ex.name}: ${ex.note} Undo to go back.` });
             }}>
               <option value="">Open an example…</option>
-              {EXAMPLES.map((x) => <option value={x.id}>{x.name}</option>)}
+              {/* Grouped by grid type, the current grid's type first. */}
+              {[g.preset, ...PRESETS.filter((p) => p !== g.preset)].map((preset) => (
+                <optgroup label={NAMES[preset]}>
+                  {EXAMPLES.filter((x) => x.grid === preset).map((x) => <option value={x.id}>{x.name}</option>)}
+                </optgroup>
+              ))}
             </select>
           </label>
           {!initial.autosave ? <p class="note warn">Not autosaving in this browser.</p> : null}
