@@ -93,7 +93,7 @@ Run on the 13 rebuilds, all golden documents and 200 random documents:
 | **E2 Allowed elements** | Mark-only export: root `<svg>` plus `<path>` only. Overlay export: also exactly one `<g id="construction">` as the first child, containing only `path`, `line` and `circle`. |
 | **E3 No stray transforms** | No `transform` attribute anywhere, no `style` attribute, no `class`, and no `id` except `construction`. |
 | **E4 Path commands** | `d` uses only `M L H V A Z` (absolute or relative after SVGO). No `C S Q T`. |
-| **E5 Precision** | No number has more than 3 decimal places. Square, rows and 2:3 / 1:2 isometric grids with integral `unitsPerCell` produce integers only. |
+| **E5 Precision** | No number has more than 3 decimal places. On square, rows and 2:3 / 1:2 isometric grids, a mark whose every coordinate is a lattice point (sharp corners, no strokes or arcs) produces integers only when `unitsPerCell` × sub-step is integral. Radii, stroke offsets and tangent points are rounded to 3 places like everything else. |
 | **E6 SVGO applied and stable** | The output equals `svgo(output)` with the project config, so SVGO is idempotent on our output. The config is `preset-default` with `mergePaths: false` and `convertPathData: { floatPrecision: 3, smartArcRounding: false }` (`ARCHITECTURE.md` §7). |
 | **E7 One path per piece** | Number of `<path>` elements in a mark-only export = number of pieces (§1.1 step 6). Holes are subpaths, never separate paths. |
 | **E8 Matches the canvas** | The canvas's mark layer and the export's `d` strings are identical at equal precision (same writer). |

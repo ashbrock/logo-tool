@@ -66,7 +66,7 @@ There is **one working screen** plus two dialogs. Exact sizes, colours and type 
   5. **Shape** (shown when a shape is selected): paint (fill/stroke), stroke width, cap and join, role (add/cut/intersect), plus actions: mirror, rotate by the grid step, duplicate, delete.
   6. **Symmetry:** off, or the grid's own symmetries (§6.9).
   7. **View:** grid lines, construction circles, paper preview.
-  8. **Export…** (primary action) and **Copy SVG**.
+  8. **Export…** (primary action) and **Copy SVG**, pinned to the bottom of the rail so they stay reachable while it scrolls.
 - **Canvas** fills the rest. It shows a cell ruler along the top and left edges, the grid, construction, the mark, points, selection and the snap preview. It pans and zooms but doesn't rotate.
 - **Hint line** is pinned under the canvas. It shows 3–5 shortcuts for the current mode and state, and replaces them for 4 s with a status message after an event (e.g. "Radius clamped to 0.42 at (3, 1)"). It's also an `aria-live="polite"` region.
 
@@ -85,7 +85,7 @@ A modal over the canvas. It has:
 - a mark colour (default `#000000`; any single hex)
 - padding in cells (default 0)
 - a construction overlay (off / dark / light)
-- PNG size (512 / 1024 / 2048 / 4096 px on the long side) and background (transparent / white / overlay)
+- PNG size (512 / 1024 / 2048 / 4096 px on the long side) and background (transparent / white). With the construction overlay on, the PNG uses the overlay's own background, and the choice is disabled.
 - a live preview, which is the exact output
 - buttons: **Download** and **Copy SVG**
 
@@ -188,7 +188,7 @@ At radius 0 all four types give a sharp corner exactly on the point.
 ### 6.10 Export
 1. Press Cmd+E or choose **Export…**. The dialog opens with the last-used settings (§4.3).
 2. Choose the format and options. The preview is the exact output.
-3. **Download** saves `<mark-name>.svg` or `<mark-name>-<size>.png`. **Copy SVG** places the SVG markup on the clipboard. Cmd+Shift+C copies straight from the canvas without opening the dialog.
+3. **Download** saves `<mark-name>.svg` or `<mark-name>-<size>.png`. **Copy SVG** places the SVG markup on the clipboard. Cmd+Shift+C copies straight from the canvas without opening the dialog. If the browser refuses the clipboard, the dialog shows the SVG in a selected text box to copy by hand.
 4. If any shape is invalid (§9), Download and Copy are disabled and the problems are listed with "Show".
 
 ### 6.11 Save and open

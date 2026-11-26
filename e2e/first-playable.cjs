@@ -3,6 +3,7 @@
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 (async () => {
   const server = spawn('npx', ['vite', 'preview', '--port', '5310', '--strictPort'], { stdio: 'ignore' });
@@ -11,7 +12,7 @@ const assert = require('node:assert/strict');
   const results = [];
   const check = async (name, f) => { try { await f(); results.push(`ok   ${name}`); } catch (e) { results.push(`FAIL ${name}: ${e.message.split('\n')[0]}`); process.exitCode = 1; } };
   try {
-    const p = await b.newPage({ viewport: { width: 1280, height: 860 } });
+    const p = await b.newPage({ viewport: { width: 1280, height: 860 }, permissions: ['clipboard-read', 'clipboard-write'] });
     const errors = [];
     p.on('pageerror', (e) => errors.push(String(e)));
     p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -122,6 +123,64 @@ const assert = require('node:assert/strict');
       await p.keyboard.press('Control+a');
       assert.equal(await p.evaluate(() => String(window.getSelection())), '');
       assert.match(await p.locator('.value').filter({ hasText: 'points' }).first().textContent(), /\d+ points/);
+    });
+    // ---- export ----
+    const openExample = async (id) => { await p.selectOption('#examples', id); await p.waitForTimeout(100); };
+    const dl = async () => { const [d] = await Promise.all([p.waitForEvent('download'), p.locator('.dialog .btn.primary').click()]); return { name: d.suggestedFilename(), data: fs.readFileSync(await d.path()) }; };
+    let svgFile = '';
+    await check('⌘E opens Export; the preview renders; Esc closes and canvas keys work again', async () => {
+      await openExample('plus');
+      await p.keyboard.press('Control+e');
+      await p.waitForSelector('.dialog.export .export-preview img', { timeout: 10000 });
+      assert.ok(await p.evaluate(() => document.querySelector('.export-preview img').naturalWidth > 0));
+      await p.keyboard.press('Escape');
+      assert.equal(await p.locator('.dialog').count(), 0);
+      await p.keyboard.press('p');
+      assert.equal(await p.locator('.seg button[aria-pressed="true"]').first().textContent(), 'Place P');
+    });
+    await check('Download SVG: one clean path per piece (no transforms, only M L H V A Z)', async () => {
+      await p.keyboard.press('Control+e');
+      await p.waitForSelector('.export-preview img');
+      const f = await dl();
+      svgFile = f.data.toString('utf8');
+      assert.match(f.name, /\.svg$/);
+      assert.match(svgFile, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="\d+" height="\d+" viewBox="0 0 \d+ \d+"><path d="[MLHVAZmlhvaz0-9 .\-]+"\/><\/svg>$/);
+      assert.doesNotMatch(svgFile, /transform|style=|class=/);
+    });
+    await check('Copy SVG puts exactly the downloaded file on the clipboard', async () => {
+      await p.locator('.dialog button', { hasText: 'Copy SVG' }).click();
+      await p.waitForTimeout(100);
+      assert.equal(await p.evaluate(() => navigator.clipboard.readText()), svgFile);
+    });
+    await check('PNG at 1024: exact size, transparent background, same pixels as the SVG (≤ 0.1% of ink)', async () => {
+      await p.locator('.dialog .seg button', { hasText: 'PNG' }).click();
+      await p.locator('.dialog .seg button', { hasText: '1024' }).click();
+      const f = await dl();
+      assert.equal(f.name, 'plus-1024.png');
+      assert.equal(f.data.readUInt32BE(16), 1024); // IHDR width
+      assert.equal(f.data.readUInt32BE(20), 1024); // IHDR height
+      const diff = await p.evaluate(async ([png, svg]) => {
+        const load = async (src) => { const i = new Image(); i.src = src; await i.decode(); return i; };
+        const px = async (img) => { const c = document.createElement('canvas'); c.width = 1024; c.height = 1024; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 1024, 1024); return g.getImageData(0, 0, 1024, 1024).data; };
+        const a = await px(await load('data:image/png;base64,' + png));
+        const sized = svg.replace('width="400" height="400"', 'width="1024" height="1024"');
+        const b = await px(await load('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sized)));
+        let ink = 0, bad = 0;
+        for (let i = 3; i < a.length; i += 4) { if (a[i] > 127 || b[i] > 127) ink++; if (Math.abs(a[i] - b[i]) > 64) bad++; }
+        return { ink, bad, corner: a[3] };
+      }, [f.data.toString('base64'), svgFile]);
+      assert.equal(diff.corner, 0, 'transparent corner');
+      assert.ok(diff.ink > 1000 && diff.bad / diff.ink <= 0.001, JSON.stringify(diff));
+    });
+    await check('the dark construction overlay exports one construction group behind the mark', async () => {
+      await p.locator('.dialog .seg button', { hasText: 'SVG' }).click();
+      await p.locator('.dialog .seg button', { hasText: 'dark' }).click();
+      const f = await dl();
+      const s = f.data.toString('utf8');
+      assert.match(s, /^<svg[^>]*><g id="construction">/);
+      assert.equal((s.match(/<g /g) || []).length, 1);
+      await p.locator('.dialog .seg button', { hasText: 'off' }).click();
+      await p.keyboard.press('Escape');
     });
     await check('hint line is on screen and there are no console errors', async () => {
       const bottom = await p.evaluate(() => document.querySelector('.hint').getBoundingClientRect().bottom);

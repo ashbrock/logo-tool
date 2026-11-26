@@ -121,3 +121,14 @@ One or two lines per significant decision, with the reason. Newest last.
 - **New lines start at the minimum width (1/8 cell).** The 1/2-cell default read as chunky; widening is one click.
 - **Arcs while drawing: A arms arc mode, Tab cycles centres.** Alt-hold can't preview because Alt+Tab is the operating system's. Only lattice points exactly equidistant from both ends are offered, nearest first, so every arc is a true grid arc.
 - **Repeat controls in the rail** (rotate ×n with optional mirror, mirror, along a line). For now the centre and axes are the lattice point nearest the grid centre; picking the centre on the canvas is a later step.
+
+## Export
+
+- **SVGO 4.1.0, loaded on demand.** It is about 800 KB, so the app fetches its browser build once idle rather than at start-up. Config as in ARCHITECTURE.md §7, plus `cleanupIds` preserving `construction`, which SVGO would otherwise strip as unreferenced (caught by the E2/E3 tests).
+- **The overlay is built as data, then optimised with the mark.** Grid lines come from the lattice itself (lines through lattice points along each lattice direction; rings and rays for polar), so every grid type gets an overlay without its own drawing code. Everything is clipped to the export frame, so the overlay never changes the bounds.
+- **Overlay colours are literal hex values with a drift test** against `tokens.css`, because an exported file can't read CSS variables.
+- **Bounds are exact for arcs** (end points plus the quarter-angle extremes the arc passes through), so a circle's frame is exactly its diameter.
+- **PNG background follows the overlay.** With the overlay on, the PNG uses the overlay's background and the transparent/white choice is disabled. That removes a contradictory combination rather than explaining it.
+- **E5 refined:** integers only for lattice-only marks. Radii in 1/240 cell, stroke offsets and tangent points can't be integral at 100 units per cell, and they round to 3 places.
+- **The rail's Export and Copy SVG are pinned to the bottom,** because the rail scrolls and they were below the fold.
+- **PNG is checked against the browser's own SVG raster** (e2e, ≤ 0.1% of ink differs); an 8 px shift fails it at 3%.

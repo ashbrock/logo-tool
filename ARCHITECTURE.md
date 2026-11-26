@@ -233,9 +233,11 @@ Contours are grouped by containment: each outer contour (counter-clockwise in sc
 3. **SVGO** with `preset-default` and these overrides:
    - **`mergePaths: false`**, so each piece stays its own `<path>`. SVGO documents the plugin as *"Merge multiple paths into one."*
    - **`convertPathData: { floatPrecision: 3, smartArcRounding: false }`**. smartArcRounding is documented as *"Round the radius of circular arcs when the effective change is under the error"*. Turning it off keeps radii identical to the model.
+   - **`cleanupIds: { preserve: ['construction'] }`**, because SVGO otherwise removes ids nothing references, which would drop the overlay group's name.
    - SVGO's `preset-default` doesn't include `removeViewBox`: the preset's plugin list in its docs omits it, so the `viewBox` survives.
+   - SVGO 4.1.0. The app loads its browser build (`svgo/browser`, about 800 KB) on demand, starting once the app is idle, so first load stays small and Copy SVG can run inside the click. Tests use the Node build with the same config (`src/export/svg.ts`, `SVGO_CONFIG`).
 4. **Root:** `<svg xmlns width height viewBox>`, one `<path d fill>` per piece, and optionally `<g id="construction">` first (`DESIGN.md` §8). No `transform`, `style`, `class` or `id` on the mark.
-5. **PNG:** the exported SVG is drawn to an `OffscreenCanvas` (with a `<canvas>` fallback) at the chosen size through an `Image` from a Blob URL, then encoded as PNG. Fonts aren't involved: the overlay has no text.
+5. **PNG:** the exported SVG, resized to the target pixels, is drawn to a `<canvas>` at the chosen size through an `Image` from a Blob URL, then encoded as PNG. (A plain canvas works everywhere the app runs; `OffscreenCanvas` adds nothing for a one-off render.) Fonts aren't involved: the overlay has no text.
 6. **Clipboard:** `navigator.clipboard.writeText(svg)` inside the click or keyboard handler. On rejection, a text area with the selected SVG is shown.
 
 ## 8. State, commands and history (`src/model/`, `src/ui/store.ts`)

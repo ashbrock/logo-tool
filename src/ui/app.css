@@ -26,7 +26,7 @@ button, select, input { font: inherit; color: inherit; }
   transition: background-color var(--motion-fast) var(--motion-ease);
 }
 select { background: var(--color-bg); }
-.btn:hover:not(:disabled), .seg button:hover:not([aria-pressed="true"]), select:hover { background: var(--color-surface-raised); }
+.btn:hover:not(:disabled), .seg button:hover:not([aria-pressed="true"]):not(:disabled), select:hover { background: var(--color-surface-raised); }
 .btn:active:not(:disabled), .seg button:active { background: var(--color-surface-raised); box-shadow: inset 0 -1px 0 var(--color-accent); }
 .btn:disabled { color: var(--color-text-disabled); border-color: var(--color-border); cursor: not-allowed; }
 .btn[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
@@ -48,3 +48,44 @@ kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: v
 input, select { user-select: text; }
 .seg button { font-size: var(--type-micro-size); padding: 0 var(--space-0-5); }
 .repeat { display: flex; flex-direction: column; gap: var(--space-1); }
+
+/* Primary action and text inputs (DESIGN.md §6). */
+.btn.primary { border-color: var(--color-accent); font-weight: 600; }
+.btn.primary:disabled { border-color: var(--color-border); font-weight: 400; }
+.btn kbd { margin-left: var(--space-0-5); }
+input:not(.mark-name), textarea {
+  min-height: var(--control-height); border: var(--border-width) solid var(--color-border-control); border-radius: var(--radius-control);
+  background: var(--color-bg); color: var(--color-text); padding: 0 var(--space-1); flex: 1; min-width: 0;
+}
+input:not(.mark-name):hover:not(:disabled), textarea:hover { border-color: var(--color-text-muted); }
+input:disabled { color: var(--color-text-disabled); border-color: var(--color-border); cursor: not-allowed; }
+input.invalid { border-color: var(--color-danger); }
+.note .bad, .bad { color: var(--color-danger); }
+.link { background: none; border: 0; padding: 0; color: var(--color-accent); text-decoration: underline; cursor: pointer; font: inherit; }
+.link:hover { color: var(--color-text); }
+
+/* Dialogs (DESIGN.md §5): centred, bordered, no shadow, over a 72% scrim. */
+.scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--color-bg) 72%, transparent); display: flex; justify-content: center; align-items: flex-start; padding: var(--space-8) var(--space-2) var(--space-2); z-index: 10; animation: fade var(--motion-base) var(--motion-ease); }
+.dialog { background: var(--color-surface); border: var(--border-width) solid var(--color-border-control); border-radius: var(--radius-control); padding: var(--space-4); max-width: 560px; width: 100%; max-height: calc(100vh - var(--space-8) - var(--space-2)); overflow: auto; }
+.dialog-title { margin: 0; font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: var(--type-title-size); line-height: var(--type-title-lh); }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.dialog.export { max-width: 880px; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--space-4); }
+.export-preview { border: var(--border-width) solid var(--color-border); min-height: 420px; display: flex; align-items: center; justify-content: center; padding: var(--space-3); }
+.export-preview[data-bg="paper"] { background: var(--paper-bg); }
+.export-preview[data-bg="dark"] { background: var(--canvas-bg); }
+.export-preview img { display: block; max-width: 100%; max-height: 480px; width: 100%; height: auto; object-fit: contain; }
+.export-preview .problems { align-self: stretch; display: flex; flex-direction: column; gap: var(--space-1); }
+.export-preview[data-bg="paper"] .problems { background: var(--color-surface); margin: calc(-1 * var(--space-3)); padding: var(--space-3); }
+.export-controls { display: flex; flex-direction: column; gap: var(--space-2); }
+.export-controls .group { padding-top: var(--space-1); }
+.export-controls .seg button { text-transform: none; }
+.swatch { width: var(--control-height); height: var(--control-height); border: var(--border-width) solid var(--color-border-control); border-radius: var(--radius-control); flex: none; }
+.export-meta { min-height: var(--type-micro-lh); font-variant-numeric: tabular-nums; }
+.actions { flex-wrap: wrap; }
+.svg-text { width: 100%; min-height: 120px; font-family: var(--font-mono); font-size: var(--type-micro-size); padding: var(--space-1); user-select: text; }
+.seg button:disabled { color: var(--color-text-disabled); border-color: var(--color-border); cursor: not-allowed; box-shadow: none; font-weight: 400; }
+.seg button:disabled:hover { background: transparent; }
+/* Export stays reachable while the rail scrolls (it is the primary action, SPEC.md §4.1). */
+.export-actions { position: sticky; bottom: calc(-1 * var(--space-2)); margin-top: auto; background: var(--color-surface); padding-bottom: var(--space-2); flex-direction: row; }
+.export-actions .btn { flex: 1; padding: 0 var(--space-0-5); }

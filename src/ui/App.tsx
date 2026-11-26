@@ -15,6 +15,10 @@ import { parseProject, serialize } from '../persist/project';
 import { Canvas } from '../render/Canvas';
 import { EXAMPLES } from '../examples';
 import { initState, reducer, type UiState } from './state';
+import { ExportDialog } from './ExportDialog';
+import { buildSvg, exportProblems, finishSvg } from '../export/svg';
+import { loadSvgo, svgoNow } from '../export/svgo-loader';
+import { copySvg } from './clipboard';
 
 const engine = makePaperEngine(paper as unknown as typeof import('paper'));
 const STORAGE_KEY = 'logo-tool:doc';
@@ -84,7 +88,8 @@ export function App() {
       const state = live.current;
       const doc = state.history.present.doc;
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (state.dialog) return; // the dialog handles its own keys
       const mod = e.metaKey || e.ctrlKey;
       const sel = selectedVertices(state);
       const sub = doc.grid.subdivision;
@@ -98,6 +103,8 @@ export function App() {
         const shapes = e.shiftKey || selectedShapeIds(state).length === 0 ? doc.shapes : doc.shapes.filter((sh) => selectedShapeIds(state).includes(sh.id));
         return run({ type: 'select', ids: shapes.flatMap((sh) => sh.path.vertices.map((v) => v.id)) });
       }
+      if (mod && k.toLowerCase() === 'e') return run({ type: 'dialog', value: 'export' });
+      if (mod && e.shiftKey && k.toLowerCase() === 'c') { e.preventDefault(); void quickCopy(); return; }
       if (mod) return;
       if (k === 'p' || k === 'P') return run({ type: 'mode', mode: 'place' });
       if (k === 'v' || k === 'V') return run({ type: 'mode', mode: 'adjust' });
@@ -158,6 +165,25 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Load SVGO once the app is idle, so Copy SVG can write to the clipboard inside the click.
+  useEffect(() => {
+    const start = () => void loadSvgo();
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(start); else setTimeout(start, 1500);
+  }, []);
+
+  /** Copy SVG from the canvas with the current export settings (SPEC.md §6.10 step 3). */
+  const quickCopy = async () => {
+    const st = live.current, d = st.history.present.doc;
+    const ev = evaluateDocument(d, engine);
+    const problems = exportProblems(d, ev);
+    if (problems.length) { dispatch({ type: 'status', text: problems[0]!.text, tone: 'error' }); return; }
+    const optimize = svgoNow() ?? (await loadSvgo());
+    const ok = await copySvg(finishSvg(buildSvg(d, ev).svg, optimize));
+    if (ok) dispatch({ type: 'status', text: 'SVG copied to the clipboard.' });
+    else dispatch({ type: 'dialog', value: 'export' });
+  };
+
   // Status messages fade after 4 s (SPEC.md §4.1).
   const showStatus = state.status && Date.now() - state.status.at < 4000 ? state.status : null;
   useEffect(() => {
@@ -178,6 +204,7 @@ export function App() {
   const setGrid = (patch: Partial<{ width: number; height: number; subdivision: Subdivision }>) =>
     dispatch({ type: 'command', command: { type: 'setGrid', grid: { ...g, ...patch } as GridDef }, label: 'Grid' });
 
+  const blocked = exportProblems(doc, evaluated);
   const issues = evaluated.issues.filter((i) => i.kind === 'corner' && i.issue.kind !== 'degenerate');
   // Line width: the selected line's width, else the width new lines will use.
   const strokeShapes = doc.shapes.filter((sh) => shapeIds.includes(sh.id) && sh.paint.kind === 'stroke');
@@ -298,12 +325,26 @@ export function App() {
             {issues.slice(0, 3).map((i) => <p class={i.kind === 'corner' && i.issue.kind === 'no-tangent' ? 'note bad' : 'note warn'}>{describe(i)}</p>)}
           </section>
         ) : null}
+        <section class="group export-actions" aria-label="Export">
+          <button type="button" class="btn primary" onClick={() => dispatch({ type: 'dialog', value: 'export' })}>Export… <kbd>⌘E</kbd></button>
+          <button type="button" class="btn" disabled={blocked.length > 0} title={blocked[0]?.text ?? 'Copy the SVG with the current export settings (⌘⇧C)'} aria-keyshortcuts="Meta+Shift+C" onClick={() => void quickCopy()}>Copy SVG</button>
+        </section>
       </aside>
 
       <main class="stage">
         <div class="canvas-wrap">
           <Canvas state={state} dispatch={dispatch} mark={evaluated.mark} construction={evaluated.construction} />
         </div>
+        {state.dialog === 'export' ? (
+          <ExportDialog doc={doc} evaluated={evaluated} dispatch={dispatch}
+            onClose={() => dispatch({ type: 'dialog', value: null })}
+            onShow={(id) => {
+              const sh = doc.shapes.find((x) => x.id === id);
+              dispatch({ type: 'dialog', value: null });
+              dispatch({ type: 'mode', mode: 'adjust' });
+              dispatch({ type: 'select', ids: sh ? sh.path.vertices.map((v) => v.id) : [] });
+            }} />
+        ) : null}
         <p class={`hint ${showStatus?.tone === 'error' ? 'error' : ''}`} aria-live="polite">{showStatus ? showStatus.text : hintFor(state)}</p>
       </main>
     </div>
