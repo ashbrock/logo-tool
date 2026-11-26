@@ -9,7 +9,7 @@ The visual system. Use these tokens. Never invent colours, fonts or spacing valu
 Principles:
 1. **Construction is blue, the mark is bone, and selection is bright paper white with a dark halo.** You can tell these three layers apart at a glance.
 2. **Show geometry instead of numbers.** Radii are circles, arcs show their centres, and stroke widths show as guides. Numbers appear in the rail, second.
-3. **Monospace first.** Martian Mono carries everything you read as data or operate, narrow in the rail and wide on the ruler. It is the only typeface: titles take weight, not a second family.
+3. **Monospace first.** IBM Plex Mono carries everything you read as data or operate. It is the only typeface: titles take weight, not a second family.
 4. **The near-neutral ground is deliberate.** A low-chroma dark ground shifts the perceived weight of a mark the least.
 
 How it differs from the inspiration tool: warm bone fill (not pale blue-white), blue used only for construction, + crosses instead of dots for lattice points, open squares for points, a cell ruler, narrow grotesque headings, and different mode names (Place / Adjust / Tile).
@@ -77,13 +77,11 @@ Self-hosted (OFL), Latin and Latin Extended subsets only, with `font-display: sw
 
 | Token | Family | Weights / axes | Fallback |
 |---|---|---|---|
-| `--font-mono` | Martian Mono (variable) | weight 100–800, width 75–112.5% | `ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace` |
-| `--stretch-ui` | — | 87.5%: rail, dialogs, hint line | — |
-| `--stretch-wide` | — | 112.5%: ruler numbers | — |
+| `--font-mono` | IBM Plex Mono | 400, 500, 600 | `ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace` |
 
-Segmented options use the narrowest width (75%), so labels like "intersect" fit.
+Segmented options use `--type-micro`, so labels like "intersect" fit.
 
-**One typeface.** Martian Mono is used for everything: controls, labels, coordinates, hint line, ruler, dialogs, the mark name and dialog titles. Hierarchy comes from size, weight (600 for titles and headings) and width, not from a second family. (Designer's direction: mono everywhere, no serif or display face.)
+**One typeface.** IBM Plex Mono is used for everything: controls, labels, coordinates, hint line, ruler, dialogs, the mark name and dialog titles. Hierarchy comes from size and weight (600 for titles and headings), not from a second family. (Designer's direction: mono everywhere, no serif or display face.)
 
 ### 3.1 Scale
 

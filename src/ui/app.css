@@ -1,7 +1,7 @@
 /* App layout and controls. Every value comes from tokens.css (DESIGN.md). */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--color-bg); color: var(--color-text); }
-body { font-family: var(--font-mono); font-stretch: var(--stretch-ui); font-size: var(--type-body-size); line-height: var(--type-body-lh); }
+body { font-family: var(--font-mono); font-size: var(--type-body-size); line-height: var(--type-body-lh); }
 #app { height: 100%; }
 .app { user-select: none; display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); height: 100vh; overflow: hidden; }
 
@@ -48,7 +48,7 @@ kbd { font-family: var(--font-mono); font-size: var(--type-micro-size); color: v
 .hint { margin: 0; padding: 0 var(--space-2); display: flex; align-items: center; border-top: var(--border-width) solid var(--color-border); color: var(--color-text-muted); font-size: var(--type-micro-size); line-height: var(--type-micro-lh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint.error { color: var(--color-danger); }
 input, select { user-select: text; }
-.seg button { font-size: var(--type-micro-size); padding: 0 var(--space-0-5); font-stretch: 75%; }
+.seg button { font-size: var(--type-micro-size); padding: 0 var(--space-0-5); }
 .repeat { display: flex; flex-direction: column; gap: var(--space-1); }
 
 /* Primary action and text inputs (DESIGN.md §6). */
@@ -118,4 +118,4 @@ input.invalid { border-color: var(--color-danger); }
 /* Length fields (− value +, typed in cells). */
 .length-field { display: flex; flex-direction: column; gap: var(--space-0-5); }
 .length-input { text-align: center; font-variant-numeric: tabular-nums; }
-.ruler-num { font-stretch: var(--stretch-wide); font-variant-numeric: tabular-nums; }
+.ruler-num { font-variant-numeric: tabular-nums; }

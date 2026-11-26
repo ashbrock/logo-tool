@@ -466,6 +466,6 @@ ${STROKE_SPECIMENS.map(renderStrokeSpecimen).join('\n')}
   <section class="sheet">
 ${BOOL_SPECIMENS.map(renderBoolSpecimen).join('\n')}
   </section>
-  <footer>Built from commit ${meta.commit}. The gallery uses the fallback type stacks (the app self-hosts Martian Mono).</footer>
+  <footer>Built from commit ${meta.commit}. The gallery uses the fallback type stacks (the app self-hosts IBM Plex Mono).</footer>
 </main>`;
 }

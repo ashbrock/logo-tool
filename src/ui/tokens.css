@@ -43,10 +43,7 @@
   --paper-radius: #3f87ad;
 
   /* §3 Typography (self-hosted in fonts.css) */
-  --font-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  /* Martian Mono's width axis: narrow in the rail and dialogs, wide for ruler numbers. */
-  --stretch-ui: 87.5%;
-  --stretch-wide: 112.5%;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   /* §3.1 Scale: size / line height */
   --type-micro-size: 11px;   --type-micro-lh: 16px;
