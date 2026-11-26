@@ -423,7 +423,7 @@ body { margin: 0; font-family: var(--font-mono); font-size: var(--type-body-size
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: var(--space-6) var(--space-8); }
 main { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
 header { display: flex; flex-direction: column; gap: var(--space-1); max-width: 72ch; }
-h1 { font-family: var(--font-display); font-weight: 600; font-size: var(--type-title-size); line-height: var(--type-title-lh); margin: 0; }
+h1 { font-family: var(--font-mono); font-weight: 600; font-size: var(--type-title-size); line-height: var(--type-title-lh); margin: 0; }
 header p { margin: 0; color: var(--color-text-muted); }
 .legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--type-micro-size); line-height: var(--type-micro-lh); color: var(--color-text-muted); }
 .legend i { display: inline-block; width: 16px; height: 0; border-top: 1.25px solid var(--canvas-radius); vertical-align: middle; margin-right: var(--space-0-5); }
@@ -434,7 +434,7 @@ header p { margin: 0; color: var(--color-text-muted); }
 .spec { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .spec svg { display: block; width: 100%; height: auto; max-width: 100%; border: var(--border-width) solid var(--color-border); }
 figcaption { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
-figcaption h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--type-heading-size); line-height: var(--type-heading-lh); }
+figcaption h2 { margin: 0; font-family: var(--font-mono); font-weight: 600; font-size: var(--type-heading-size); line-height: var(--type-heading-lh); }
 .note { margin: 0; color: var(--color-text-muted); font-size: var(--type-micro-size); line-height: var(--type-micro-lh); }
 .data { margin: 0; font-size: var(--type-micro-size); line-height: var(--type-micro-lh); font-variant-numeric: tabular-nums; }
 .ok { color: var(--color-accent); } .warn { color: var(--color-warning); } .bad { color: var(--color-danger); }
@@ -442,7 +442,7 @@ details { font-size: var(--type-micro-size); line-height: var(--type-micro-lh); 
 summary { cursor: pointer; min-height: 24px; display: flex; align-items: center; }
 summary:focus-visible { outline: var(--focus-width) solid var(--color-accent); outline-offset: 2px; }
 code { display: block; overflow-wrap: anywhere; color: var(--color-text); padding-top: var(--space-0-5); }
-.section { margin: var(--space-3) 0 0; font-family: var(--font-display); font-weight: 600; font-size: var(--type-title-size); line-height: var(--type-title-lh); }
+.section { margin: var(--space-3) 0 0; font-family: var(--font-mono); font-weight: 600; font-size: var(--type-title-size); line-height: var(--type-title-lh); }
 .intro { margin: 0; color: var(--color-text-muted); max-width: 72ch; }
 footer { color: var(--color-text-muted); font-size: var(--type-micro-size); border-top: var(--border-width) solid var(--color-border); padding-top: var(--space-2); }
 </style>
@@ -466,6 +466,6 @@ ${STROKE_SPECIMENS.map(renderStrokeSpecimen).join('\n')}
   <section class="sheet">
 ${BOOL_SPECIMENS.map(renderBoolSpecimen).join('\n')}
   </section>
-  <footer>Built from commit ${meta.commit}. The gallery uses the fallback type stacks (the app self-hosts Martian Mono and Archivo Narrow).</footer>
+  <footer>Built from commit ${meta.commit}. The gallery uses the fallback type stacks (the app self-hosts Martian Mono).</footer>
 </main>`;
 }

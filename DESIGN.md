@@ -9,7 +9,7 @@ The visual system. Use these tokens. Never invent colours, fonts or spacing valu
 Principles:
 1. **Construction is blue, the mark is bone, and selection is bright paper white with a dark halo.** You can tell these three layers apart at a glance.
 2. **Show geometry instead of numbers.** Radii are circles, arcs show their centres, and stroke widths show as guides. Numbers appear in the rail, second.
-3. **Monospace first.** Martian Mono carries everything you read as data or operate, narrow in the rail and wide on the ruler. Archivo Narrow is reserved for the mark name and dialog titles.
+3. **Monospace first.** Martian Mono carries everything you read as data or operate, narrow in the rail and wide on the ruler. It is the only typeface: titles take weight, not a second family.
 4. **The near-neutral ground is deliberate.** A low-chroma dark ground shifts the perceived weight of a mark the least.
 
 How it differs from the inspiration tool: warm bone fill (not pale blue-white), blue used only for construction, + crosses instead of dots for lattice points, open squares for points, a cell ruler, narrow grotesque headings, and different mode names (Place / Adjust / Tile).
@@ -78,13 +78,12 @@ Self-hosted (OFL), Latin and Latin Extended subsets only, with `font-display: sw
 | Token | Family | Weights / axes | Fallback |
 |---|---|---|---|
 | `--font-mono` | Martian Mono (variable) | weight 100–800, width 75–112.5% | `ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace` |
-| `--font-display` | Archivo Narrow | 500, 600 | `"Arial Narrow", "Helvetica Neue", sans-serif` |
 | `--stretch-ui` | — | 87.5%: rail, dialogs, hint line | — |
 | `--stretch-wide` | — | 112.5%: ruler numbers | — |
 
 Segmented options use the narrowest width (75%), so labels like "intersect" fit.
 
-**Pairing rule.** Martian Mono is used for everything you operate or read as data: controls, labels, coordinates, hint line, ruler, dialogs. Archivo Narrow (600, upright) is used **only** for the mark name in the rail header and dialog titles. It never appears in controls.
+**One typeface.** Martian Mono is used for everything: controls, labels, coordinates, hint line, ruler, dialogs, the mark name and dialog titles. Hierarchy comes from size, weight (600 for titles and headings) and width, not from a second family. (Designer's direction: mono everywhere, no serif or display face.)
 
 ### 3.1 Scale
 
@@ -96,10 +95,10 @@ The ratio is about 1.17, with the base anchored at 13 px for dense desktop contr
 | `--type-label` | 11 / 16 px | mono 500, uppercase, tracking +0.08em | Rail section labels |
 | `--type-body` | 13 / 20 px | mono 400 | Control text, values, dialog body |
 | `--type-strong` | 13 / 20 px | mono 600 | Active segmented option, primary button |
-| `--type-heading` | 16 / 24 px | Archivo Narrow 600 | Dialog and sheet section headings |
-| `--type-title` | 20 / 28 px | Archivo Narrow 600 | Mark name in rail header, dialog titles |
+| `--type-heading` | 16 / 24 px | mono 600 | Dialog and sheet section headings |
+| `--type-title` | 20 / 28 px | mono 600 | Mark name in rail header, dialog titles |
 
-Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are written `(3, 1)` or `(1.5, 4)`, with two decimals only when sub-steps aren't halves (e.g. `0.30`, `(3.375, 2)` is shown as `(3⅜, 2)` when subdivision is 8). Radius and width are always shown in cells with two decimals.
+Numbers use `font-variant-numeric: tabular-nums` everywhere. Coordinates are written `(3, 1)` or `(1.5, 4)`, with two decimals only when sub-steps aren't halves (e.g. `0.30`, `(3.375, 2)` is shown as `(3⅜, 2)` when subdivision is 8). Radius and width are always shown in cells: as an exact fraction when it is a simple one (1/8, 7/24, 11/16, 1 1/2), otherwise as a decimal (0.3). See `SPEC.md` §6.6.
 
 ## 4. Spacing, sizing and shape
 

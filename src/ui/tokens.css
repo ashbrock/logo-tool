@@ -44,7 +44,6 @@
 
   /* §3 Typography (self-hosted in fonts.css) */
   --font-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --font-display: "Archivo Narrow", "Arial Narrow", "Helvetica Neue", sans-serif;
   /* Martian Mono's width axis: narrow in the rail and dialogs, wide for ruler numbers. */
   --stretch-ui: 87.5%;
   --stretch-wide: 112.5%;
