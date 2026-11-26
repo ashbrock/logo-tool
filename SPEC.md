@@ -146,6 +146,7 @@ Shortcuts are listed in full in §8. Each flow is written for the pointer, with 
 ### 6.5 Round a corner
 1. Select one or more points. Drag the **radius handle** on the right of the last selected point's selection ring (right to increase, left to decrease; one cell of drag is one cell of radius; snaps to 1/24 cell, or to the sub-step with Shift), press `]` or `[`, or use the rail's − and +. **Every radius control steps the same way:** 1/24 cell, or one grid sub-step with Shift, snapping to that step. 0 removes rounding. A line's end points have no corner, so they show no handle.
 2. The radius is always **drawn as a circle** (§7.4). Typed values snap to multiples of 1/240 of a cell.
+3. **Lengths are in cells everywhere** (radius, joint radius, line width): never pixels, because a mark exports at any size. Values show as exact fractions when simple (1/8, 7/24, 11/16, 1 1/2) and as decimals otherwise (0.3). The value between − and + is a field: type `1/8`, `0.3` or `1 1/2`; Up / Down step (Shift: grid step), Enter applies, Esc reverts. A note under it gives the size in the exported file at the current units per cell. Line width steps like a radius, with a minimum (and default) of 1/8 cell.
 3. **Named radii:** "Save radius" in the Point section stores the current value as a named radius (e.g. `r1 = 0.30`). Points can use a named radius, and changing it updates them all. That's how a mark keeps one consistent radius (see e-logo-3).
 
 ### 6.6 Choose a corner type

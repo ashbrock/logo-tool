@@ -39,7 +39,7 @@ const fs = require('node:fs');
       await click(6, 2);
       await p.keyboard.press('r'); await p.keyboard.press('r');
       for (let i = 0; i < 3; i++) await p.keyboard.press(']');
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.13'); // 3 × 1/24 cell
+      assert.equal(await p.inputValue('#point-radius'), '1/8'); // 3 × 1/24 cell
     });
     await check('the radius handle drags: right increases, left decreases', async () => {
       await p.keyboard.press('0');
@@ -47,25 +47,25 @@ const fs = require('node:fs');
       const [x0] = await at(0, 0), [x1] = await at(1, 0);
       const cell = x1 - x0;
       await p.mouse.move(hx, hy); await p.mouse.down(); await p.mouse.move(hx + cell * 0.5, hy, { steps: 5 }); await p.mouse.up();
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.50');
+      assert.equal(await p.inputValue('#point-radius'), '1/2');
       const [h2x, h2y] = await p.evaluate(() => { const c = document.querySelector('.radius-handle circle:last-of-type'); const r = c.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
       await p.mouse.move(h2x, h2y); await p.mouse.down(); await p.mouse.move(h2x - cell * 0.25, h2y, { steps: 5 }); await p.mouse.up();
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.25');
+      assert.equal(await p.inputValue('#point-radius'), '1/4');
     });
     await check('keys still work after using a rail dropdown', async () => {
       await p.selectOption('#grid-sub', '2');
       await click(6, 2);
       await p.keyboard.press(']');
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.29'); // 0.25 + 1/24
+      assert.equal(await p.inputValue('#point-radius'), '7/24'); // 0.25 + 1/24
     });
     await check('the rail’s + and − step like ] and [ (1/24 cell; Shift: a grid step)', async () => {
       await p.locator('button[aria-label="Larger radius"]').click();
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.33');
+      assert.equal(await p.inputValue('#point-radius'), '1/3');
       await p.locator('button[aria-label="Smaller radius"]').click();
       await p.keyboard.press('[');
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.25');
+      assert.equal(await p.inputValue('#point-radius'), '1/4');
       await p.locator('button[aria-label="Larger radius"]').click({ modifiers: ['Shift'] });
-      assert.equal(await p.locator('.radius .value').first().textContent(), 'r 0.50'); // Shift: next 1/2-cell grid step
+      assert.equal(await p.inputValue('#point-radius'), '1/2'); // Shift: next 1/2-cell grid step
     });
     await check('Delete removes the selected point', async () => {
       await click(6, 6);
@@ -102,7 +102,22 @@ const fs = require('node:fs');
       assert.notEqual(await markD(), sun);
     });
     await check('new lines start at the thinnest width (1/8 cell)', async () => {
-      assert.match(await p.locator('.group', { hasText: 'Line width' }).locator('.value').textContent(), /0\.13 cell|0\.125 cell/);
+      assert.equal(await p.inputValue('#line-width'), '1/8');
+    });
+    await check('lengths can be typed as fractions or decimals, in cells', async () => {
+      assert.equal(await p.inputValue('#line-width'), '1/8');
+      assert.match(await p.locator('#line-width-note').textContent(), /12\.5 in export/);
+      await p.fill('#line-width', '3/10');
+      await p.press('#line-width', 'Enter');
+      assert.equal(await p.inputValue('#line-width'), '0.3');
+      await p.fill('#line-width', 'wide');
+      await p.press('#line-width', 'Enter');
+      assert.equal(await p.getAttribute('#line-width', 'aria-invalid'), 'true');
+      await p.press('#line-width', 'Escape');
+      assert.equal(await p.inputValue('#line-width'), '0.3');
+      await p.fill('#line-width', '1/8');
+      await p.press('#line-width', 'Enter');
+      assert.equal(await p.inputValue('#line-width'), '1/8');
     });
     await check('A arms arcs; Tab cycles centres; clicking places a true arc', async () => {
       await p.selectOption('#examples', 'plus'); // start from a known document
@@ -151,6 +166,7 @@ const fs = require('node:fs');
       assert.equal(await markD(), markBefore);
     });
     await check('Ctrl+A selects points, not page text', async () => {
+      await p.evaluate(() => window.getSelection().removeAllRanges()); // only Ctrl+A's own effect counts
       await p.keyboard.press('Control+a');
       assert.equal(await p.evaluate(() => String(window.getSelection())), '');
       assert.match(await p.locator('.value').filter({ hasText: 'points' }).first().textContent(), /\d+ points/);

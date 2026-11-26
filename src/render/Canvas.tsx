@@ -15,6 +15,7 @@ import type { ShapeConstruction } from '../pipeline/resolve';
 import type { Action, UiState } from '../ui/state';
 import { arcCandidates } from '../ui/arcs';
 import { radiusStep } from '../ui/steps';
+import { formatCells } from '../ui/cells';
 
 const MARGIN = 1; // cells around the grid: room for the ruler
 const ve = { 'vector-effect': 'non-scaling-stroke' } as Record<string, string>;
@@ -323,7 +324,7 @@ export function Canvas({ state, dispatch, mark, construction }: Props) {
     <g class="radius-handle">
       <circle cx={handle.at.x} cy={handle.at.y} r={px(6)} fill="var(--canvas-halo)" />
       <circle cx={handle.at.x} cy={handle.at.y} r={px(5)} fill={drag?.kind === 'radius' ? 'var(--canvas-selection)' : 'var(--canvas-active)'} />
-      <text x={handle.at.x + px(9)} y={handle.at.y + px(4)} font-size={px(11)} fill="var(--canvas-active)" font-family="var(--font-mono)" paint-order="stroke" stroke="var(--canvas-halo)" stroke-width={px(3)}>r {(handle.r / LEN).toFixed(2)}</text>
+      <text x={handle.at.x + px(9)} y={handle.at.y + px(4)} font-size={px(11)} fill="var(--canvas-active)" font-family="var(--font-mono)" paint-order="stroke" stroke="var(--canvas-halo)" stroke-width={px(3)}>r {formatCells(handle.r)}</text>
     </g>
   ) : null;
 

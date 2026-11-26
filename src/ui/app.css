@@ -112,3 +112,7 @@ input.invalid { border-color: var(--color-danger); }
 .examples { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .rail .link { align-self: flex-start; font-size: var(--type-micro-size); }
 .canvas.picking { cursor: copy; }
+
+/* Length fields (− value +, typed in cells). */
+.length-field { display: flex; flex-direction: column; gap: var(--space-0-5); }
+.length-input { text-align: center; font-variant-numeric: tabular-nums; }

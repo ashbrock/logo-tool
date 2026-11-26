@@ -21,6 +21,8 @@ import { buildSvg, exportProblems, finishSvg } from '../export/svg';
 import { loadSvgo, svgoNow } from '../export/svgo-loader';
 import { copySvg } from './clipboard';
 import { radiusStep, stepRadius } from './steps';
+import { LengthField } from './LengthField';
+import { formatCells } from './cells';
 import { download, fileStem } from '../export/png';
 
 const engine = makePaperEngine(paper as unknown as typeof import('paper'));
@@ -244,10 +246,10 @@ export function App() {
   const shapeIds = selectedShapeIds(state);
   const firstShape = doc.shapes.find((s) => s.id === shapeIds[0]);
   const g = doc.grid;
-  const radiusOf = (v: Vertex) => (typeof v.radius === 'number' ? v.radius : 0) / LEN;
   const same = <T,>(xs: T[]) => (xs.length && xs.every((x) => x === xs[0]) ? xs[0] : undefined);
   const corner = same(sel.map((v) => v.corner));
-  const radius = same(sel.map(radiusOf));
+  const radius240 = same(sel.map((v) => (typeof v.radius === 'number' ? v.radius : 0)));
+  const shapes = doc.shapes.filter((sh) => shapeIds.includes(sh.id));
 
   const setGrid = (patch: Partial<{ width: number; height: number; subdivision: Subdivision; rings: number }>) =>
     dispatch({ type: 'command', command: { type: 'setGrid', grid: { ...g, ...patch } as GridDef }, label: 'Grid' });
@@ -340,11 +342,8 @@ export function App() {
                   <button type="button" aria-pressed={corner === c} onClick={() => dispatch({ type: 'command', command: { type: 'setCorner', vertexIds: sel.map((v) => v.id), corner: c }, label: 'Corner type' })}>{c === 'inward' ? 'in' : c}</button>
                 ))}
               </div>
-              <div class="row radius">
-                <button type="button" class="btn" aria-label="Smaller radius" title="Shift: one grid step" onClick={(e) => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: stepRadius(Math.round((radius ?? 0) * LEN), -1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Radius' })}>−</button>
-                <span class="value" aria-live="polite">r {radius === undefined ? 'mixed' : radius.toFixed(2)}</span>
-                <button type="button" class="btn" aria-label="Larger radius" title="Shift: one grid step" onClick={(e) => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: stepRadius(Math.round((radius ?? 0) * LEN), 1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Radius' })}>+</button>
-              </div>
+              <LengthField id="point-radius" label="radius" value={radius240} subdivision={g.subdivision} unitsPerCell={doc.export.unitsPerCell}
+                onChange={(r) => dispatch({ type: 'command', command: { type: 'setRadius', vertexIds: sel.map((v) => v.id), radius: r }, label: 'Radius' })} />
             </>
           )}
         </section>
@@ -353,29 +352,23 @@ export function App() {
           <h2 class="label" id="shape-label">Shape</h2>
           {!firstShape ? <p class="note">Select a point to set its shape’s role.</p> : (
             <>
-            <p class="value">{firstShape.paint.kind === 'stroke' ? `Line · width ${(firstShape.paint.width / LEN).toFixed(2)}` : 'Filled shape'}{shapeIds.length > 1 ? ` · ${shapeIds.length} shapes` : ''}</p>
+            <p class="value">{firstShape.paint.kind === 'stroke' ? `Line · width ${formatCells(firstShape.paint.width)} cell` : 'Filled shape'}{shapeIds.length > 1 ? ` · ${shapeIds.length} shapes` : ''}</p>
             <div class="seg" role="group" aria-label="Role">
               {(['add', 'cut', 'intersect'] as const).map((r, i) => (
                 <button type="button" aria-pressed={firstShape.role === r} aria-keyshortcuts={String(i + 1)} title={`${r} (${i + 1})`} onClick={() => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRole', shapeId: id, role: r }, label: 'Role' }))}>{r}</button>
               ))}
             </div>
             <RepeatControls repeat={firstShape.repeat} grid={g} centre={gridCentre(g)} picking={!!state.pickCentre} onPick={() => dispatch({ type: 'pickCentre', shapeIds: state.pickCentre ? null : shapeIds })} onChange={(repeat) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setRepeat', shapeId: id, repeat }, label: 'Repeat' }))} />
-            <div class="row radius">
-              <button type="button" class="btn" aria-label="Smaller joint radius" title="Shift: one grid step" onClick={(e) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: stepRadius(firstShape.jointRadius, -1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Joint radius' }))}>−</button>
-              <span class="value" title="Rounds the corners this shape creates where it meets others">joint {(firstShape.jointRadius / LEN).toFixed(2)}</span>
-              <button type="button" class="btn" aria-label="Larger joint radius" title="Shift: one grid step" onClick={(e) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: stepRadius(firstShape.jointRadius, 1, radiusStep(g.subdivision, e.shiftKey)) }, label: 'Joint radius' }))}>+</button>
-            </div>
+            <LengthField id="joint-radius" label="joint radius" value={same(shapes.map((sh) => sh.jointRadius))} subdivision={g.subdivision} unitsPerCell={doc.export.unitsPerCell}
+              onChange={(v) => shapeIds.forEach((id) => dispatch({ type: 'command', command: { type: 'setJointRadius', shapeId: id, value: v }, label: 'Joint radius' }))} />
+            <p class="note">Rounds the corners this shape makes where it meets the shapes before it.</p>
             </>
           )}
         </section>
 
         <section class="group" aria-labelledby="line-label">
-          <h2 class="label" id="line-label">Line width</h2>
-          <div class="row radius">
-            <button type="button" class="btn" aria-label="Thinner line" onClick={() => setWidth(Math.max(30, currentWidth - 30))}>−</button>
-            <span class="value">{(currentWidth / LEN).toFixed(2)} cell</span>
-            <button type="button" class="btn" aria-label="Thicker line" onClick={() => setWidth(currentWidth + 30)}>+</button>
-          </div>
+          <h2 class="label" id="line-label">Lines</h2>
+          <LengthField id="line-width" label="width" value={currentWidth} min={30} subdivision={g.subdivision} unitsPerCell={doc.export.unitsPerCell} onChange={setWidth} />
           <p class="note">New paths draw as lines at this width. Closing one makes a filled shape.</p>
         </section>
 
@@ -497,7 +490,7 @@ function RepeatControls({ repeat, grid, centre, picking, onPick, onChange }: { r
           {(['u', 'v'] as const).map((axis) => (
             <div class="row radius">
               <button type="button" class="btn" aria-label={`Step ${axis === 'u' ? 'left' : 'up'}`} onClick={() => { const s = { ...repeat.step, [axis]: repeat.step[axis] - 1 }; if (s.u !== 0 || s.v !== 0) onChange({ ...repeat, step: lattice(s.u, s.v) }); }}>−</button>
-              <span class="value">{axis === 'u' ? 'step x' : 'step y'} {(repeat.step[axis] / sub).toFixed(2)}</span>
+              <span class="value">{axis === 'u' ? 'step x' : 'step y'} {formatCells((repeat.step[axis] / sub) * LEN)}</span>
               <button type="button" class="btn" aria-label={`Step ${axis === 'u' ? 'right' : 'down'}`} onClick={() => { const s = { ...repeat.step, [axis]: repeat.step[axis] + 1 }; if (s.u !== 0 || s.v !== 0) onChange({ ...repeat, step: lattice(s.u, s.v) }); }}>+</button>
             </div>
           ))}
@@ -521,8 +514,8 @@ function fmtCell(n: number): string {
 function describe(i: ReturnType<typeof evaluateDocument>['issues'][number]): string {
   if (i.kind !== 'corner') return i.kind;
   const c = i.issue;
-  if (c.kind === 'clamped') return `A radius of ${c.requested.toFixed(2)} doesn’t fit; using ${c.actual.toFixed(2)}.`;
-  if (c.kind === 'no-tangent') return `A radius of ${c.requested.toFixed(2)} swallows its neighbour. Reduce it below ${c.maxRadius.toFixed(2)}.`;
+  if (c.kind === 'clamped') return `A radius of ${formatCells(c.requested * LEN)} doesn’t fit; using ${formatCells(c.actual * LEN)}.`;
+  if (c.kind === 'no-tangent') return `A radius of ${formatCells(c.requested * LEN)} swallows its neighbour. Reduce it below ${formatCells(c.maxRadius * LEN)}.`;
   return 'This shape can’t be drawn yet.';
 }
 
