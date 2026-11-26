@@ -20,8 +20,8 @@ The reference SVGs are **visual targets, not path-data targets** (`DECISIONS.md`
 
 ### 1.1 Procedure [auto]
 
-1. **Rebuild with the model.** Each logo is rebuilt as a project file `tests/rebuilds/<name>.logo.json`, written through model commands (in a fixture script or by hand in the tool). Rebuilds never import or trace the original's path data.
-2. **Export** with `unitsPerCell` set so the export `viewBox` matches the original's size (e.g. p-logo-1: 125 units per cell, giving `0 0 375 500`), colour `#000`, padding 0, no overlay.
+1. **Rebuild with the model.** Each logo is rebuilt through model commands in `tests/rebuilds/index.ts` (the same builder the built-in examples use). `npm run rebuilds` also writes each one as a project file, `artifacts/rebuilds/<name>.logo.json`. Rebuilds never import or trace the original's path data: measurements are read off the original (corner positions, arc centres, radii) and the shape is then constructed on a lattice.
+2. **Export** with `unitsPerCell` set close to the original's cell size (e.g. p-logo-1: 125 units per cell, giving `0 0 375 500`), colour `#000`, padding 0, no overlay. `unitsPerCell` is a whole number, so a cell of 13.33 or 7.27 exports at 13 or 7. That only changes the file's size, because step 3 renders both files at 1024 px.
 3. **Render** the original and the export in Playwright Chromium at **1024 px on the long side**, black on white, same viewport, `deviceScaleFactor: 1`.
 4. **Align.** Both rasters are aligned on their ink bounding box. That only matters if an original has padding.
 5. **Compare** with pixelmatch, `threshold: 0.1` (its default) and `includeAA: false`. Its README defines `threshold` as *"How different two colors must be for a pixel to count as mismatched, from 0 to 1 … to allow some percentage of the image to differ, compare the returned count against width * height instead."* We compare the returned count against **ink area**, not image area, so small marks aren't let off easily:
@@ -42,19 +42,21 @@ Original node counts were measured on the files in `/references` (Z excluded).
 | p-logo-1 | square 3 × 4 (1) | polygon, cutout, 45° | 20 | 20 | 0.5% |
 | e-logo-2 | square 3 × 3 (1) | 45° polygons, 3 pieces | 20 | 20 | 1.0%* |
 | e-logo-3 | square 3 × 3 (1) | small fillets on 45° and 135° corners | 26 | 26 | 1.0% |
-| e-logo-4 | isometric 2:3 | slope 2:3, bands, small fillets | 40 | 40 | 1.0% |
-| p-logo-7 | isometric true 30° | three sharp pieces | 15 | 15 | 3.0%† |
-| p-logo-4 | square, slant 21.24° | slanted grid, large fillets, cutout | 32 | 32 | 1.0% |
-| p-logo-3 | square (2) | oblique cube in strokes, round joins | 191 | 60 | 1.0% |
+| e-logo-4 | isometric 2:3 (2) | slope 2:3, bands, small fillets | 40 | 40 | 1.5%‡ |
+| p-logo-7 | square, 1/4 steps (slope 5:8) | three sharp pieces | 15 | 15 | 3.0%† |
+| p-logo-4 | square, slant 21.24°, cells of 100/9 | slanted grid, large fillets, cutout | 32 | 32 | 1.0% |
+| p-logo-3 | square (1) | oblique cube in strokes, round joins | 191 | 60 | 1.0% |
 | p-logo-5 | polar, rotation 30° | outer wrap (teardrop), inward star cutout | 16 | 16 | 1.5% |
 | a-logo | triangular (2) | strokes, round caps, inward bends | 65 | 65 | 1.5% |
 | node-logo | triangular, rotation 15° | outer and inward wraps, cutout | 111 | 111 | 1.5% |
 | motion-logo | square 23 × 6 (8) | wraps r = 0.5, flat ends, 0.375 spacing, cutouts | 119 | 119 | 1.0% |
-| m-logo-2 | square (2) | strokes with arc segments, round caps | 97 | 97 | 1.0% |
+| m-logo-2 | square (1) | strokes with arc segments, round caps | 97 | 97 | 1.0% |
 | m-logo-1 | polar 24 rays + companion square | rays intersected with a frame, joint radius at clip corners | 50 | 50 | 1.5% |
 
 - \* e-logo-2's original has nodes about 0.028 off its lattice. The rebuild puts them on the lattice, which is an intentional deviation within the threshold.
-- † p-logo-7's two slopes (31.36° and 32.64°) are unified in the rebuild. This deviation is recorded in `DECISIONS.md`, which justifies the 3.0% threshold.
+- † p-logo-7's two slopes (31.36° and 32.64°) are unified in the rebuild at 5:8 (32.0°). That fits a square grid with 1/4 steps exactly, and isometric true 30° fits worse. This deviation is recorded in `DECISIONS.md`, which justifies the 3.0% threshold.
+- ‡ e-logo-4's slope is 0.6715, not 2/3. The rebuild uses the grid's exact 2/3, which shows as a uniform hairline along every sloped edge (1.38%). Recorded in `DECISIONS.md`.
+- **Status:** 10 of 13 pass (`npm run rebuilds`). Three are still open: **a-logo**, whose slope is 1.75 rather than √3 (it fits a triangular grid to about 1%); **node-logo**, whose edge directions differ by 53° and 63.5°, so it isn't on a triangular lattice and is likely wraps around circles; and **p-logo-5**, whose star-arc centres sit at uneven distances and angles from the disc centre. Each needs its construction worked out before it can be rebuilt.
 - **p-logo-3's limit is 60 nodes, not 191,** because the original's 146 tiny curve segments are a defect. The rebuild must be about 3× leaner. That's the evidence that export quality beats the reference.
 - **m-logo-1** needs both the companion square lattice (its frame) and the joint radius (its rounded clip corners).
 - Radii are stored in 1/240 cell, so original radii that aren't multiples (e.g. e-logo-3's 2/35 cell) round to the nearest step. The thresholds absorb this. It's under 0.02 px at the original sizes.

@@ -132,3 +132,13 @@ One or two lines per significant decision, with the reason. Newest last.
 - **E5 refined:** integers only for lattice-only marks. Radii in 1/240 cell, stroke offsets and tangent points can't be integral at 100 units per cell, and they round to 3 places.
 - **The rail's Export and Copy SVG are pinned to the bottom,** because the rail scrolls and they were below the fold.
 - **PNG is checked against the browser's own SVG raster** (e2e, ≤ 0.1% of ink differs); an 8 px shift fails it at 3%.
+
+## Reconstruction
+
+- **Rebuilds are construction, not tracing.** Each original is measured (sharp corners from intersecting its straight edges, arc centres and radii from three points per curve). The rebuild is then written as commands on a lattice that the measurements fit. 10 of 13 references pass, and every passing rebuild has fewer nodes than its original: p-logo-3 has 40 against 191, and m-logo-2 has 31 against 97.
+- **p-logo-4's grid is in ninths.** Its horizontal steps are 1/9 of its 100-unit rows, so the rebuild uses cells of 100/9, slanted 21.24°. It then matches to the pixel.
+- **p-logo-7 moved from isometric to square.** Its two slopes are unified at 5:8, which a square grid with 1/4 steps hits exactly.
+- **e-logo-4 keeps the grid's 2/3 slope** rather than the original's 0.6715. The threshold is 1.5%, and the diff is a uniform hairline.
+- **m-logo-2 is one ribbon,** drawn as two strokes that meet under a round cap so neither crosses itself. **motion-logo's m is two shapes merged:** its humps cross at a point off the lattice, which the merge computes exactly.
+- **Arcs over a half turn need an explicit direction** in the rebuild builder. Its first motion-logo attempt chose the short way round the 270° counter tops, and the pixel diff caught it.
+- **Open:** a-logo, node-logo and p-logo-5 (see VERIFICATION.md §1.2 for the measured reasons).

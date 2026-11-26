@@ -125,4 +125,18 @@ export const REBUILDS: readonly Rebuild[] = [
       return b.doc;
     },
   },
+  {
+    name: 'p-logo-3', unitsPerCell: 79, maxNodes: 60, maxMismatch: 1.0,
+    note: 'Square grid, cells of 79.3, whole cells. An oblique cube plus stem as strokes 0.3 cell wide (72/240) with round joins: the front square as a ring, the back face as one open line running into the top 45° edge (the hidden edge is not drawn), three more 45° edges and a three-segment stem. The original spends 146 tiny curves on what are round joins.',
+    build() {
+      const b = builder(square(5, 7, 1), 'p-logo-3');
+      const w = 72 / 240;
+      // The back face is open where the front face hides it: (3, 0) to (3, 1) isn't drawn.
+      b.path([[3, 1], [3, 3], [0, 3], [0, 0], [3, 0], [4, 1]], { stroke: w });
+      b.path([[1, 1], [4, 1], [4, 4], [1, 4]], { stroke: w, closed: true });
+      for (const [x, y] of [[0, 0], [3, 3], [0, 3]] as const) b.path([[x, y], [x + 1, y + 1]], { stroke: w });
+      b.path([[0, 3], [0, 5], [1, 6], [1, 4]], { stroke: w });
+      return b.doc;
+    },
+  },
 ];
